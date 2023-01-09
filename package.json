@@ -1,0 +1,22 @@
+{
+  "name": "ddbind",
+  "version": "1.0.0",
+  "description": "",
+  "main": "dist/index.js",
+  "typings": "types/index.d.ts",
+  "scripts": {
+    "dev:browser": "rollup -w -c scripts/config.js --environment BROWSER:true",
+    "dev:node": "rollup -w -c scripts/config.js --environment BROWSER:false",
+    "build": "node scripts/build.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@rollup/plugin-replace": "^5.0.2",
+    "rollup": "^3.9.1",
+    "rollup-plugin-typescript2": "^0.34.1",
+    "terser": "^5.16.1",
+    "typescript": "^4.9.4"
+  }
+}
