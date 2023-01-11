@@ -6,7 +6,7 @@ const buildTypes = ['dev', 'prod']
 
 function getConfig(isTargetingBrowser, buildType = 'dev') {
     const config = {
-        input: path.resolve(__dirname, '../src/index.ts'),
+        input: path.resolve(__dirname, '../src/module/index.ts'),
         plugins: [
             ts({
                 tsconfig: path.resolve(__dirname, '../', 'tsconfig.json'),
@@ -21,14 +21,15 @@ function getConfig(isTargetingBrowser, buildType = 'dev') {
             })
         ],
         output: {
-            name: 'ddbind',
+            name: 'DdBind',
             file: path.resolve(__dirname, `../dist/ddbind${isTargetingBrowser ? '.browser' : ''}.${buildType}.js`),
             format: isTargetingBrowser ? 'umd' : 'es',
             banner: '/*!\n' +
                 ' * ddb\'s mvvm-learning-framework \n' +
                 ' * ddbind framework as a temporary name \n' +
                 ' * for Baidu\'s courses\n' +
-                ' */'
+                ' */',
+            exports: 'auto'
         }
     }
     const vars = {

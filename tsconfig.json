@@ -7,9 +7,14 @@
     "outDir": "./dist",
     "baseUrl": "./",
     "paths": {
-      "types/*": ["types/*"],
-      "ddbinding/*": ["src/ddbinding/*"]
-    }
+      "types/*": ["src/types/*"],
+      "core/*": ["src/core/*"],
+      "reactivity/*": ["src/reactivity/*"]
+    },
+    "lib": [
+      "dom",
+      "esnext",
+    ]
   },
   "exclude": [
     "node_modules"
