@@ -10,6 +10,7 @@
 })(this, (function (exports) { 'use strict';
 
     var activeEffect; // 当前激活的副作用函数
+    var effectBucket = new WeakMap(); // 副作用函数桶
     var effectStack = []; // 副作用函数运行栈，避免嵌套副作用函数占用activeEffect的问题
     /**
      * 清除原有依赖关系
@@ -38,61 +39,11 @@
             return res;
         };
         effectFn.deps = [];
+        effectFn.options = options;
         if (!options.isLazy) {
             effectFn();
         }
         return effectFn;
-    }
-
-    /**
-     * 适用于非对象类型，构建响应式对象时用其作为装饰器
-     */
-    var DecoratedObject = /** @class */ (function () {
-        function DecoratedObject(value) {
-            this._value = value;
-        }
-        return DecoratedObject;
-    }());
-    var effectBucket = new WeakMap(); // 副作用函数桶
-    var ReactVal = /** @class */ (function () {
-        function ReactVal(value) {
-            this.handler = {
-                set: function (target, p, newValue) {
-                    target[p] = newValue;
-                    trigger(target, p);
-                    return true;
-                },
-                get: function (target, p) {
-                    track(target, p);
-                    return target[p];
-                }
-            };
-            this._value = new Proxy(value, this.handler);
-        }
-        Object.defineProperty(ReactVal.prototype, "value", {
-            get: function () {
-                if (this._value instanceof DecoratedObject) {
-                    return this._value._value;
-                }
-                else
-                    return this._value;
-            },
-            set: function (newValue) {
-                if (this._value instanceof DecoratedObject)
-                    this._value._value = newValue;
-                else
-                    this._value = newValue;
-            },
-            enumerable: false,
-            configurable: true
-        });
-        return ReactVal;
-    }());
-    function ref(value) {
-        if (typeof value === 'object')
-            return new ReactVal(value);
-        else
-            return new ReactVal(new DecoratedObject(value));
     }
     /**
      * 追踪并绑定副作用函数
@@ -120,7 +71,11 @@
      */
     function trigger(target, key) {
         var depsMap = effectBucket.get(target);
+        if (!depsMap)
+            return;
         var effects = depsMap.get(key);
+        if (!effects)
+            return;
         var effectsToRuns = new Set();
         effects.forEach(function (fn) {
             if (fn !== activeEffect) {
@@ -128,38 +83,82 @@
             }
         });
         effectsToRuns.forEach(function (fn) {
-            fn();
+            if (fn.options && fn.options.scheduler) {
+                fn.options.scheduler(fn);
+            }
+            else {
+                fn();
+            }
         });
     }
 
     /**
-     * 创建一个计算属性
-     * @param getter 计算属性方法
+     * 适用于非对象类型，构建响应式对象时用其作为装饰器
      */
-    function computed(getter) {
-        var effectFn = effect(getter, {
-            isLazy: true
-        });
-        var obj = {
-            get value() {
-                return effectFn();
+    var DecoratedValue = /** @class */ (function () {
+        function DecoratedValue(value) {
+            this.value = value;
+        }
+        return DecoratedValue;
+    }());
+    /**
+     * 响应式数据代理类
+     */
+    var ReactVal = /** @class */ (function () {
+        function ReactVal(value) {
+            this.handler = {
+                set: function (target, p, newValue) {
+                    target[p] = newValue;
+                    trigger(target, p);
+                    return true;
+                },
+                get: function (target, p) {
+                    track(target, p);
+                    return target[p];
+                }
+            };
+            var _proxy;
+            if (typeof value === 'object') {
+                _proxy = new Proxy(value, this.handler);
             }
-        };
-        return obj;
+            this._value = new Proxy(new DecoratedValue(_proxy), this.handler);
+        }
+        Object.defineProperty(ReactVal.prototype, "value", {
+            get: function () {
+                var _this = this;
+                if (typeof this._value.value === 'object') {
+                    this._value.value.toString = function () {
+                        return JSON.stringify(_this._value.value);
+                    };
+                }
+                return this._value.value;
+            },
+            set: function (newValue) {
+                if (this._value instanceof DecoratedValue) {
+                    this._value.value = newValue;
+                }
+            },
+            enumerable: false,
+            configurable: true
+        });
+        return ReactVal;
+    }());
+    /**
+     * 创建一个响应式对象
+     * @param value 响应式对象值
+     */
+    function ref(value) {
+        return new ReactVal(value);
     }
 
     function test() {
         var b = ref({
             text: 'a'
         });
-        var a = computed(function () {
-            return b.value + 'b';
-        });
-        console.log(a.value);
-        console.log(a.value);
         effect(function () {
-            document.getElementById('app').innerText = a.value;
+            document.getElementById('app').innerText = b.value.text;
         });
+        b.value.text = 'b';
     }
 
     exports.test = test;

@@ -1,6 +1,7 @@
 export {
-    activeEffect,
     EffectFunction,
     EffectOption,
-    effect
+    effect,
+    trigger,
+    track,
 } from './effect'
