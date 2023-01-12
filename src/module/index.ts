@@ -1,14 +1,16 @@
 import {ref} from "reactivity/reactVal";
 import {effect} from "core/index";
+import {watch} from "reactivity/watch";
 
 export function test() {
     const b = ref({
-        text: 'a'
+        ary: [],
+        text: 'aa'
     })
 
-    effect(() => {
-        document.getElementById('app').innerText = b.value.text
+    watch(b, (newValue) => {
+        console.log(b.value)
     })
-    b.value.text = 'b'
 
+    b.value.ary.push('fuck')
 }

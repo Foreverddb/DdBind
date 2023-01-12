@@ -1,6 +1,10 @@
 import {effect, EffectFunction, track, trigger} from "core/index";
+import {Reactivity} from "types/reactivity";
 
-interface Computed<T = any> {
+/**
+ * 计算属性对象的value应为只读，其只能通过getter的返回值获取
+ */
+interface Computed<T = any> extends Reactivity<T>{
     readonly value: T
 }
 
@@ -17,7 +21,7 @@ export function computed<T>(getter: EffectFunction<T>): Computed<T> {
         // 当依赖的响应式数据发生变化时刷新缓存
         scheduler: () => {
             dirty = true
-            trigger(obj, 'value')
+            trigger(obj, 'value') // 因为执行副作用函数模式为懒加载，当依赖的响应式数据发送变化时需手动触发其副作用函数
         }
     })
 
@@ -27,7 +31,7 @@ export function computed<T>(getter: EffectFunction<T>): Computed<T> {
                 buffer = effectFn()
                 dirty = false
             }
-            track(obj, 'value')
+            track(obj, 'value') // 添加依赖的响应式对象到计算属性的依赖
             return buffer
         }
     }

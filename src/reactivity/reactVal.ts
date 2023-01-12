@@ -1,11 +1,12 @@
 import {track, trigger} from "core/index";
-
-
+import {Reactivity} from "types/reactivity";
 
 /**
- * 适用于非对象类型，构建响应式对象时用其作为装饰器
+ * 构建响应式对象时用其作为装饰器
+ * 实现嵌套的响应式对象
  */
 class DecoratedValue<T> {
+    // 原始对象
     value
 
     constructor(value) {
@@ -13,37 +14,38 @@ class DecoratedValue<T> {
     }
 }
 
+const handler: ProxyHandler<any> = {
+    set(target: any, p: string | symbol, newValue: any): boolean {
+        target[p] = newValue
+        trigger(target, p)
+        return true
+    },
+    get(target: any, p: string | symbol): any {
+        track(target, p)
+        bindValueToString(target)
+        return target[p]
+    }
+}
+
 /**
  * 响应式数据代理类
  */
-class ReactVal<T = any> {
+class ReactVal<T = any> implements Reactivity<T>{
+    // 代理对象
     private readonly _value: DecoratedValue<T>
-    private handler: ProxyHandler<any> = {
-        set(target: any, p: string | symbol, newValue: any): boolean {
-            target[p] = newValue
-            trigger(target, p)
-            return true
-        },
-        get(target: any, p: string | symbol): any {
-            track(target, p)
-            return target[p]
-        }
-    }
+    private isTraversing: boolean = false
 
     constructor(value: T) {
         let _proxy: T
         if (typeof value === 'object') {
-            _proxy = new Proxy(value, this.handler)
+            _proxy = new Proxy(toRefs(value), handler) // 原始值为对象则建立一个深层代理
+        } else {
+            _proxy = value
         }
-        this._value = new Proxy(new DecoratedValue(_proxy), this.handler)
+        this._value = new Proxy(new DecoratedValue(_proxy), handler) // 实现赋值新的原始值对象时可以得到响应
     }
 
     get value(): T {
-        if (typeof this._value.value === 'object') {
-            this._value.value.toString = () => {
-                return JSON.stringify(this._value.value)
-            }
-        }
         return this._value.value
     }
 
@@ -52,6 +54,30 @@ class ReactVal<T = any> {
             this._value.value = newValue
         }
     }
+}
+
+/**
+ * 绑定新的toString()
+ * @param target 需要绑定的对象
+ */
+function bindValueToString(target: object) {
+    target.toString = () => {
+        return JSON.stringify(target) // 输出对象值而非[Object object]
+    }
+}
+
+/**
+ * 深层绑定对象内所有值为响应式
+ * @param value 原始值对象
+ */
+function toRefs<T>(value: T): T {
+    for (const valueKey in value) {
+        if (typeof value[valueKey] === 'object') {
+            value[valueKey] = new Proxy(value[valueKey], handler)
+            toRefs(value[valueKey])
+        }
+    }
+    return value
 }
 
 /**

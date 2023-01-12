@@ -93,7 +93,8 @@
     }
 
     /**
-     * 适用于非对象类型，构建响应式对象时用其作为装饰器
+     * 构建响应式对象时用其作为装饰器
+     * 实现嵌套的响应式对象
      */
     var DecoratedValue = /** @class */ (function () {
         function DecoratedValue(value) {
@@ -101,36 +102,35 @@
         }
         return DecoratedValue;
     }());
+    var handler = {
+        set: function (target, p, newValue) {
+            target[p] = newValue;
+            trigger(target, p);
+            return true;
+        },
+        get: function (target, p) {
+            track(target, p);
+            bindValueToString(target);
+            return target[p];
+        }
+    };
     /**
      * 响应式数据代理类
      */
     var ReactVal = /** @class */ (function () {
         function ReactVal(value) {
-            this.handler = {
-                set: function (target, p, newValue) {
-                    target[p] = newValue;
-                    trigger(target, p);
-                    return true;
-                },
-                get: function (target, p) {
-                    track(target, p);
-                    return target[p];
-                }
-            };
+            this.isTraversing = false;
             var _proxy;
             if (typeof value === 'object') {
-                _proxy = new Proxy(value, this.handler);
+                _proxy = new Proxy(toRefs(value), handler); // 原始值为对象则建立一个深层代理
             }
-            this._value = new Proxy(new DecoratedValue(_proxy), this.handler);
+            else {
+                _proxy = value;
+            }
+            this._value = new Proxy(new DecoratedValue(_proxy), handler); // 实现赋值新的原始值对象时可以得到响应
         }
         Object.defineProperty(ReactVal.prototype, "value", {
             get: function () {
-                var _this = this;
-                if (typeof this._value.value === 'object') {
-                    this._value.value.toString = function () {
-                        return JSON.stringify(_this._value.value);
-                    };
-                }
                 return this._value.value;
             },
             set: function (newValue) {
@@ -144,6 +144,28 @@
         return ReactVal;
     }());
     /**
+     * 绑定新的toString()
+     * @param target 需要绑定的对象
+     */
+    function bindValueToString(target) {
+        target.toString = function () {
+            return JSON.stringify(target); // 输出对象值而非[Object object]
+        };
+    }
+    /**
+     * 深层绑定对象内所有值为响应式
+     * @param value 原始值对象
+     */
+    function toRefs(value) {
+        for (var valueKey in value) {
+            if (typeof value[valueKey] === 'object') {
+                value[valueKey] = new Proxy(value[valueKey], handler);
+                toRefs(value[valueKey]);
+            }
+        }
+        return value;
+    }
+    /**
      * 创建一个响应式对象
      * @param value 响应式对象值
      */
@@ -151,14 +173,41 @@
         return new ReactVal(value);
     }
 
+    /**
+     * 遍历对象属性使其绑定响应
+     */
+    function traverseRef(value, traversed) {
+        if (traversed === void 0) { traversed = new Set(); }
+        if (!value || typeof value !== 'object' || traversed.has(value))
+            return;
+        traversed.add(value);
+        for (var valueKey in value) {
+            traverseRef(value[valueKey], traversed);
+        }
+        return value;
+    }
+    /**
+     * 注册一个侦听器
+     * @param target 侦听对象
+     * @param callback 对象值发生变化时执行的回调
+     */
+    function watch(target, callback) {
+        effect(function () { return traverseRef(target.value); }, {
+            scheduler: function (fn) {
+                callback(target.value);
+            }
+        });
+    }
+
     function test() {
         var b = ref({
-            text: 'a'
+            ary: [],
+            text: 'aa'
         });
-        effect(function () {
-            document.getElementById('app').innerText = b.value.text;
+        watch(b, function (newValue) {
+            console.log(b.value);
         });
-        b.value.text = 'b';
+        b.value.ary.push('fuck');
     }
 
     exports.test = test;

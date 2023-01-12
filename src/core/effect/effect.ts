@@ -3,7 +3,7 @@
  */
 export interface EffectOption {
     isLazy?: boolean,
-    scheduler?: (func: (effect: EffectFunction) => any) => any
+    scheduler?: (func: EffectFunction) => any
 }
 
 /**
