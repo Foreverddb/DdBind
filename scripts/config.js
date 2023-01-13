@@ -29,7 +29,10 @@ function getConfig(isTargetingBrowser, buildType = 'dev') {
                 ' * ddbind framework as a temporary name \n' +
                 ' * for Baidu\'s courses\n' +
                 ' */',
-            exports: 'auto'
+            exports: 'auto',
+            globals: {
+                'reactivity': 'types/reactivity'
+            }
         }
     }
     const vars = {

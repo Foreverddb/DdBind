@@ -1,8 +1,11 @@
-import {Reactivity} from "types/reactivity";
 import {effect} from "core/effect";
+import {Reactivity} from "types/reactivity";
 
+/**
+ * 侦听属性的回调函数类型
+ */
 interface WatchCallback<T> {
-    (newValue: T): any
+    (newValue: T, oldValue: T, onExpired: (fn: () => {}) => any): any
 }
 
 /**
@@ -25,10 +28,31 @@ function traverseRef(value: any, traversed = new Set()) {
  * @param target 侦听对象
  * @param callback 对象值发生变化时执行的回调
  */
-export function watch<T>(target: Reactivity<T>, callback: WatchCallback<T>) {
-    effect(() => traverseRef(target.value), {
-        scheduler: (fn) => {
-            callback(target.value)
+export function watch<T>(target: object | (() => any), callback: WatchCallback<T>) {
+    let getter // 需要注册的getter函数
+    // 若为用户定义的getter则直接使用
+    if (typeof target === 'function') {
+        getter = target
+    } else {
+        getter = () => traverseRef(target)
+    }
+
+    let newValue: T, oldValue: T
+    let onExpiredHandler: () => any
+    const onExpired = (fn: () => any) => {
+        onExpiredHandler = fn
+    }
+
+    const effectFn = effect(getter, {
+        isLazy: true,
+        scheduler: () => {
+            newValue = {...effectFn()} // 防止与oldValue引用同一对象
+
+            if (onExpiredHandler) onExpiredHandler() // 若注册了过期函数则在回调前执行
+
+            callback(newValue, oldValue, onExpired)
+            oldValue = newValue
         }
     })
+    oldValue = {...effectFn()} // 防止与newValue引用同一对象
 }

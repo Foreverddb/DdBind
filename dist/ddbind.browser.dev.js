@@ -12,6 +12,7 @@
     var activeEffect; // 当前激活的副作用函数
     var effectBucket = new WeakMap(); // 副作用函数桶
     var effectStack = []; // 副作用函数运行栈，避免嵌套副作用函数占用activeEffect的问题
+    var iterateBucket = new WeakMap(); // 代理的迭代对象的key值桶
     /**
      * 清除原有依赖关系
      * @param effectFn 副作用函数
@@ -57,6 +58,9 @@
         if (!depsMap) {
             effectBucket.set(target, (depsMap = new Map()));
         }
+        if (typeof key === 'symbol') {
+            iterateBucket.set(target, key);
+        }
         var effects = depsMap.get(key);
         if (!effects) {
             depsMap.set(key, (effects = new Set()));
@@ -68,20 +72,36 @@
      * 触发执行副作用函数
      * @param target 绑定对象
      * @param key 绑定key
+     * @param type 对代理对象的操作类型(SET/GET/DELETE等)
      */
-    function trigger(target, key) {
+    function trigger(target, key, type) {
         var depsMap = effectBucket.get(target);
         if (!depsMap)
             return;
         var effects = depsMap.get(key);
-        if (!effects)
-            return;
         var effectsToRuns = new Set();
-        effects.forEach(function (fn) {
+        effects && effects.forEach(function (fn) {
             if (fn !== activeEffect) {
                 effectsToRuns.add(fn);
             }
         });
+        if (type === 'ADD' && Array.isArray(target)) {
+            var lengthEffects = depsMap.get('length');
+            lengthEffects && lengthEffects.forEach(function (fn) {
+                if (fn != activeEffect) {
+                    effectsToRuns.add(fn);
+                }
+            });
+        }
+        // 当增加或删除属性时触发迭代时注册的副作用函数
+        if (type === 'ADD' || type === 'DELETE') {
+            var iterateKey = iterateBucket.get(target);
+            iterateKey && depsMap.get(iterateKey).forEach(function (fn) {
+                if (fn !== activeEffect) {
+                    effectsToRuns.add(fn);
+                }
+            });
+        }
         effectsToRuns.forEach(function (fn) {
             if (fn.options && fn.options.scheduler) {
                 fn.options.scheduler(fn);
@@ -93,121 +113,79 @@
     }
 
     /**
-     * 构建响应式对象时用其作为装饰器
-     * 实现嵌套的响应式对象
+     * 为所有代理对象与数组绑定新的toString()
      */
-    var DecoratedValue = /** @class */ (function () {
-        function DecoratedValue(value) {
-            this.value = value;
-        }
-        return DecoratedValue;
-    }());
-    var handler = {
-        set: function (target, p, newValue) {
-            target[p] = newValue;
-            trigger(target, p);
-            return true;
-        },
-        get: function (target, p) {
-            track(target, p);
-            bindValueToString(target);
-            return target[p];
-        }
+    Object.prototype.toString = function () {
+        return JSON.stringify(this); // 输出对象值而非[Object object]
+    };
+    Array.prototype.toString = function () {
+        return JSON.stringify(this);
     };
     /**
-     * 响应式数据代理类
+     * 获取一个唯一的代理handler
      */
-    var ReactVal = /** @class */ (function () {
-        function ReactVal(value) {
-            this.isTraversing = false;
-            var _proxy;
-            if (typeof value === 'object') {
-                _proxy = new Proxy(toRefs(value), handler); // 原始值为对象则建立一个深层代理
-            }
-            else {
-                _proxy = value;
-            }
-            this._value = new Proxy(new DecoratedValue(_proxy), handler); // 实现赋值新的原始值对象时可以得到响应
-        }
-        Object.defineProperty(ReactVal.prototype, "value", {
-            get: function () {
-                return this._value.value;
-            },
-            set: function (newValue) {
-                if (this._value instanceof DecoratedValue) {
-                    this._value.value = newValue;
+    function handler() {
+        return {
+            set: function (target, p, newValue, receiver) {
+                var oldValue = target[p];
+                var type = Array.isArray(target)
+                    ? (Number(p) < target.length ? 'SET' : 'ADD')
+                    : (Object.prototype.hasOwnProperty.call(target, p) ? 'SET' : 'ADD');
+                var res = Reflect.set(target, p, newValue, receiver);
+                // 只有当值发生变化时才更新
+                if (oldValue !== newValue && (oldValue === oldValue || newValue === newValue)) {
+                    trigger(target, p, type);
                 }
+                return res;
             },
-            enumerable: false,
-            configurable: true
-        });
-        return ReactVal;
-    }());
-    /**
-     * 绑定新的toString()
-     * @param target 需要绑定的对象
-     */
-    function bindValueToString(target) {
-        target.toString = function () {
-            return JSON.stringify(target); // 输出对象值而非[Object object]
-        };
-    }
-    /**
-     * 深层绑定对象内所有值为响应式
-     * @param value 原始值对象
-     */
-    function toRefs(value) {
-        for (var valueKey in value) {
-            if (typeof value[valueKey] === 'object') {
-                value[valueKey] = new Proxy(value[valueKey], handler);
-                toRefs(value[valueKey]);
+            get: function (target, p, receiver) {
+                var res = Reflect.get(target, p, receiver);
+                if (typeof res === 'object' && res !== null) {
+                    // 将对象的所有值进行响应式追踪
+                    for (var resKey in res) {
+                        track(res, resKey);
+                    }
+                    return reactive(res);
+                }
+                track(target, p);
+                return res;
+            },
+            has: function (target, p) {
+                track(target, p);
+                return Reflect.has(target, p);
+            },
+            ownKeys: function (target) {
+                track(target, Symbol('iterateKey')); // 设置一个与target关联的key
+                return Reflect.ownKeys(target);
+            },
+            deleteProperty: function (target, p) {
+                var hasKey = Object.prototype.hasOwnProperty.call(target, p);
+                var res = Reflect.deleteProperty(target, p);
+                if (res && hasKey) {
+                    trigger(target, p, 'DELETE');
+                }
+                return res;
             }
-        }
-        return value;
+        };
     }
     /**
      * 创建一个响应式对象
      * @param value 响应式对象值
      */
-    function ref(value) {
-        return new ReactVal(value);
-    }
-
-    /**
-     * 遍历对象属性使其绑定响应
-     */
-    function traverseRef(value, traversed) {
-        if (traversed === void 0) { traversed = new Set(); }
-        if (!value || typeof value !== 'object' || traversed.has(value))
-            return;
-        traversed.add(value);
-        for (var valueKey in value) {
-            traverseRef(value[valueKey], traversed);
-        }
-        return value;
-    }
-    /**
-     * 注册一个侦听器
-     * @param target 侦听对象
-     * @param callback 对象值发生变化时执行的回调
-     */
-    function watch(target, callback) {
-        effect(function () { return traverseRef(target.value); }, {
-            scheduler: function (fn) {
-                callback(target.value);
-            }
-        });
+    function reactive(value) {
+        return new Proxy(value, handler());
     }
 
     function test() {
-        var b = ref({
-            ary: [],
-            text: 'aa'
+        var b = reactive([]);
+        // watch(b, (newValue, oldValue) => {
+        //     console.log(newValue)
+        // })
+        effect(function () {
+            console.log(b.toString());
         });
-        watch(b, function (newValue) {
-            console.log(b.value);
-        });
-        b.value.ary.push('fuck');
+        b.push('ss');
+        b[0] = 'sio';
     }
 
     exports.test = test;

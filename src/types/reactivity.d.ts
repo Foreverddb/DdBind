@@ -1,3 +1,3 @@
-export declare interface Reactivity<T> {
+export interface Reactivity<T> {
     value: T
 }
