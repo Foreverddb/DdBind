@@ -1,5 +1,4 @@
 import {effect} from "core/effect";
-import {Reactivity} from "types/reactivity";
 
 /**
  * 侦听属性的回调函数类型

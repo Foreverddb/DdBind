@@ -4,7 +4,7 @@ import {watch} from "reactivity/watch";
 import {reactive} from "reactivity/reactive";
 
 export function test() {
-    const b = reactive([])
+    const b = reactive(null)
 
     // watch(b, (newValue, oldValue) => {
     //     console.log(newValue)
@@ -16,5 +16,7 @@ export function test() {
 
     b.push('ss')
     b[0] = 'sio'
+    b.length = 100
+    b.length = 10
 
 }

@@ -1,10 +1,10 @@
 import {effect, EffectFunction, track, trigger} from "core/index";
-import {Reactivity} from "types/reactivity";
+import {RefObj} from "types/reactivity";
 
 /**
  * 计算属性对象的value应为只读，其只能通过getter的返回值获取
  */
-interface Computed<T = any> extends Reactivity<T>{
+interface Computed<T = any> extends RefObj<T>{
     readonly value: T
 }
 

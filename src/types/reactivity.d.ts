@@ -1,3 +1,3 @@
-export interface Reactivity<T> {
+export type RefObj<T> =  {
     value: T
 }

@@ -112,6 +112,13 @@
         });
     }
 
+    var error;
+    {
+        error = function (msg, source) {
+            console.error("[DdBind-error]: at ".concat(source, " \n ").concat(msg));
+        };
+    }
+
     /**
      * 为所有代理对象与数组绑定新的toString()
      */
@@ -128,6 +135,7 @@
         return {
             set: function (target, p, newValue, receiver) {
                 var oldValue = target[p];
+                // 对set对类型进行针对常规对象和数组的优化
                 var type = Array.isArray(target)
                     ? (Number(p) < target.length ? 'SET' : 'ADD')
                     : (Object.prototype.hasOwnProperty.call(target, p) ? 'SET' : 'ADD');
@@ -155,7 +163,8 @@
                 return Reflect.has(target, p);
             },
             ownKeys: function (target) {
-                track(target, Symbol('iterateKey')); // 设置一个与target关联的key
+                track(target, Array.isArray(target) ? 'length' // 若遍历对象为数组则可直接代理length属性
+                    : Symbol('iterateKey')); // 设置一个与target关联的key
                 return Reflect.ownKeys(target);
             },
             deleteProperty: function (target, p) {
@@ -173,11 +182,14 @@
      * @param value 响应式对象值
      */
     function reactive(value) {
+        if ((typeof value !== "object" || value === null)) {
+            error('reactive() requires an object parameter', value);
+        }
         return new Proxy(value, handler());
     }
 
     function test() {
-        var b = reactive([]);
+        var b = reactive(null);
         // watch(b, (newValue, oldValue) => {
         //     console.log(newValue)
         // })
@@ -186,6 +198,8 @@
         });
         b.push('ss');
         b[0] = 'sio';
+        b.length = 100;
+        b.length = 10;
     }
 
     exports.test = test;

@@ -1,4 +1,5 @@
 import {track, trigger} from "core/effect";
+import {error} from "../utils/debug";
 
 /**
  * 为所有代理对象与数组绑定新的toString()
@@ -18,6 +19,7 @@ export function handler(): ProxyHandler<any> {
         set(target: any, p: string | symbol, newValue: any, receiver: any): boolean {
             const oldValue = target[p]
 
+            // 对set对类型进行针对常规对象和数组的优化
             const type: string = Array.isArray(target)
                 ? (Number(p) < target.length ? 'SET' : 'ADD')
                 : (Object.prototype.hasOwnProperty.call(target, p) ? 'SET' : 'ADD')
@@ -47,7 +49,8 @@ export function handler(): ProxyHandler<any> {
             return Reflect.has(target, p)
         },
         ownKeys(target: any): ArrayLike<string | symbol> {
-            track(target, Symbol('iterateKey')) // 设置一个与target关联的key
+            track(target, Array.isArray(target) ? 'length' // 若遍历对象为数组则可直接代理length属性
+                : Symbol('iterateKey')) // 设置一个与target关联的key
             return Reflect.ownKeys(target)
         },
         deleteProperty(target: any, p: string | symbol): boolean {
@@ -66,5 +69,8 @@ export function handler(): ProxyHandler<any> {
  * @param value 响应式对象值
  */
 export function reactive<T extends object>(value: T): T {
+    if (__DEV__ && (typeof value !== "object" || value === null)) {
+        error('reactive() requires an object parameter', value)
+    }
     return new Proxy(value, handler())
 }

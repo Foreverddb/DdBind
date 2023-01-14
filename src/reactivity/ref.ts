@@ -1,5 +1,5 @@
-import {Reactivity} from "types/reactivity";
 import {handler} from "reactivity/reactive";
+import {RefObj} from "types/reactivity";
 
 /**
   * 为所有代理对象绑定新的toString()
@@ -23,7 +23,7 @@ class DecoratedValue<T> {
 /**
  * 响应式数据代理类
  */
-class Ref<T = any> implements Reactivity<T>{
+class Ref<T = any> implements RefObj<T>{
     // 代理对象
     private readonly _value: DecoratedValue<T>
 
