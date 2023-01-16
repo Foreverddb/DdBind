@@ -20,7 +20,8 @@ export interface EffectFunction<T = any> extends Function {
 /**
  * 仅用于标识响应式对象的副作用函数依赖map类型
  */
-interface DepsMap extends Map<string | symbol, Set<EffectFunction>> {}
+interface DepsMap extends Map<string | symbol, Set<EffectFunction>> {
+}
 
 let activeEffect: EffectFunction // 当前激活的副作用函数
 const effectBucket: WeakMap<any, DepsMap> = new WeakMap() // 副作用函数桶
@@ -117,7 +118,7 @@ export function trigger(target: any, key: string | symbol, type?: string) {
 
     // 当增加或删除属性时触发迭代时注册的副作用函数
     if (type === 'ADD' || type === 'DELETE') {
-        const iterateKey: symbol =  iterateBucket.get(target)
+        const iterateKey: symbol = iterateBucket.get(target)
         iterateKey && depsMap.get(iterateKey).forEach((fn) => {
             if (fn !== activeEffect) {
                 effectsToRuns.add(fn)

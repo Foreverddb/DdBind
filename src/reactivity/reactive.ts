@@ -1,14 +1,13 @@
 import {track, trigger} from "core/effect";
 import {error} from "../utils/debug";
 
+const reactiveMap: Map<object, object> = new Map()
+
 /**
  * 为所有代理对象与数组绑定新的toString()
  */
 Object.prototype.toString = function () {
     return JSON.stringify(this) // 输出对象值而非[Object object]
-}
-Array.prototype.toString = function () {
-    return JSON.stringify(this)
 }
 
 /**
@@ -60,17 +59,26 @@ export function handler(): ProxyHandler<any> {
                 trigger(target, p, 'DELETE')
             }
             return res
-        }
+        },
+
     }
 }
+console.log()
 
 /**
- * 创建一个响应式对象
+ * 创建一个代理非原始值的响应式对象
  * @param value 响应式对象值
  */
 export function reactive<T extends object>(value: T): T {
     if (__DEV__ && (typeof value !== "object" || value === null)) {
         error('reactive() requires an object parameter', value)
     }
-    return new Proxy(value, handler())
+    // 检查是否已创建了对应的代理对象，有则直接返回
+    const existProxy = reactiveMap.get(value)
+    if (existProxy) return existProxy as T
+
+    const proxy = new Proxy(value, handler())
+    reactiveMap.set(value, proxy)
+
+    return proxy
 }
