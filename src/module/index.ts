@@ -18,10 +18,19 @@ export function test() {
                 }
             },
             {
-                type: 'h1',
-                children: 'shit'
+                type: 'button',
+                children: 'test',
+                props: {
+                    style: {
+                        color: 'red'
+                    },
+                    onClick: () => {
+                        console.log('aaaa')
+                    }
+                }
             }
         ]
     }
     renderer.render(vnode, document.querySelector('#app'))
+    // renderer.render(null, document.querySelector('#app'))
 }
