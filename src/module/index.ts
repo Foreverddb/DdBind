@@ -6,31 +6,33 @@ import {createRenderer} from "../renderer/renderer";
 import {VNode} from "types/renderer";
 
 export function test() {
+    const a = ref(false)
     const renderer = createRenderer()
-    const vnode: VNode = {
-        type: 'div',
-        children: [
-            {
-                type: 'p',
-                children: 'fuck',
-                props: {
-                    id: 'dd'
+
+    effect(() => {
+        const vnode: VNode = {
+            type: 'div',
+            props: a.value ? {
+                onClick: () => {
+                    console.log('parent')
                 }
-            },
-            {
-                type: 'button',
-                children: 'test',
-                props: {
-                    style: {
-                        color: 'red'
-                    },
-                    onClick: () => {
-                        console.log('aaaa')
+            } : {},
+            children: [
+                {
+                    type: 'button',
+                    children: 'test',
+                    props: {
+                        style: {
+                            color: 'red'
+                        },
+                        onClick: () => {
+                            console.log('child')
+                            a.value = true
+                        }
                     }
                 }
-            }
-        ]
-    }
-    renderer.render(vnode, document.querySelector('#app'))
-    // renderer.render(null, document.querySelector('#app'))
+            ]
+        }
+        renderer.render(vnode, document.querySelector('#app'))
+    })
 }

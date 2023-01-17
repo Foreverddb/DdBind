@@ -9,6 +9,9 @@ const reactiveMap: Map<object, object> = new Map()
 Object.prototype.toString = function () {
     return JSON.stringify(this) // 输出对象值而非[Object object]
 }
+Array.prototype.toString = function () {
+    return JSON.stringify(this)
+}
 
 /**
  * 获取一个唯一的代理handler
@@ -33,14 +36,14 @@ export function handler(): ProxyHandler<any> {
         },
         get(target: any, p: string | symbol, receiver: any): any {
             const res = Reflect.get(target, p, receiver)
+            track(target, p)
             if (typeof res === 'object' && res !== null) {
-                // 将对象的所有值进行响应式追踪
+                // 为每个对象绑定追踪
                 for (const resKey in res) {
                     track(res, resKey)
                 }
                 return reactive(res)
             }
-            track(target, p)
             return res
         },
         has(target: any, p: string | symbol): boolean {
@@ -63,7 +66,6 @@ export function handler(): ProxyHandler<any> {
 
     }
 }
-console.log()
 
 /**
  * 创建一个代理非原始值的响应式对象

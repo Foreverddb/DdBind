@@ -17,7 +17,7 @@ class DecoratedValue<T> {
 /**
  * 响应式数据代理类
  */
-class Ref<T = any> implements RefObj<T>{
+export class Ref<T = any> implements RefObj<T>{
     // 代理对象
     private readonly _value: DecoratedValue<T>
 

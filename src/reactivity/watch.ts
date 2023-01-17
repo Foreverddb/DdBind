@@ -1,4 +1,5 @@
 import {effect} from "core/effect";
+import {Ref} from "reactivity/ref";
 
 /**
  * 侦听属性的回调函数类型
@@ -32,6 +33,8 @@ export function watch<T>(target: object | (() => any), callback: WatchCallback<T
     // 若为用户定义的getter则直接使用
     if (typeof target === 'function') {
         getter = target
+    } else if (target instanceof Ref) {
+        getter = () => traverseRef(target.value)
     } else {
         getter = () => traverseRef(target)
     }

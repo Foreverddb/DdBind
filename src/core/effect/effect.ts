@@ -98,6 +98,11 @@ export function trigger(target: any, key: string | symbol, type?: string) {
     let depsMap = effectBucket.get(target)
     if (!depsMap) return
 
+    // if (type === 'ADD') {
+    //     track(target, key)
+    // }
+    // depsMap = effectBucket.get(target)
+
     const effects = depsMap.get(key)
 
     const effectsToRuns: Set<EffectFunction> = new Set()
