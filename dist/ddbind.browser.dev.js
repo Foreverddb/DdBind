@@ -245,7 +245,7 @@
          * @param el 目标dom
          * @param key 目标属性名
          * @param value 属性值
-          */
+         */
         function shouldSetAsDomProps(el, key, value) {
             if (key === 'form' && el.tagName === 'INPUT')
                 return false;
@@ -268,6 +268,9 @@
                     if (!invoker_1) {
                         // 原来无事件处理函数则注册新的
                         invoker_1 = el._invokers[eventName] = function (event) {
+                            // 若事件触发事件早于绑定时间则不处理此事件
+                            if (event.timeStamp < invoker_1.attachTime)
+                                return;
                             // 处理存在多个事件处理函数的情况
                             if (Array.isArray(invoker_1.value)) {
                                 invoker_1.value.forEach(function (fn) { return fn(event); });
@@ -277,6 +280,7 @@
                             }
                         };
                         invoker_1.value = newValue;
+                        invoker_1.attachTime = performance.now(); // 记录此事件的绑定时间
                         el.addEventListener(eventName, invoker_1);
                     }
                     else {
@@ -353,6 +357,73 @@
             }
         }
         /**
+         * 更新某节点的子节点
+         * @param oldVNode 旧vnode
+         * @param newVNode 新vnode
+         * @param container
+         */
+        function updateElementChild(oldVNode, newVNode, container) {
+            if (typeof newVNode.children === 'string') { // 新vnode的children为字符串的情况
+                if (Array.isArray(oldVNode.children)) {
+                    oldVNode.children.forEach(function (child) {
+                        unmountElement(child);
+                    });
+                }
+                container.textContent = newVNode.children;
+            }
+            else if (Array.isArray(newVNode.children)) { // 新vnode的children类型为一组组件的情况
+                if (Array.isArray(oldVNode.children)) {
+                    // 卸载后更新全部子节点
+                    oldVNode.children.forEach(function (child) {
+                        unmountElement(child);
+                    });
+                    newVNode.children.forEach(function (child) {
+                        patch(null, child, container);
+                    });
+                }
+                else {
+                    container.textContent = '';
+                    newVNode.children.forEach(function (child) {
+                        patch(null, child, container);
+                    });
+                }
+            }
+            else { // 若新子节点不存在则挨个卸载
+                if (Array.isArray(oldVNode.children)) {
+                    oldVNode.children.forEach(function (child) {
+                        unmountElement(child);
+                    });
+                }
+                else if (typeof oldVNode.children === 'string') {
+                    container.textContent = '';
+                }
+            }
+        }
+        /**
+         * 更新修补vnode并重新挂载
+         * @param oldVNode
+         * @param newVNode
+         */
+        function updateElement(oldVNode, newVNode) {
+            var el = newVNode.el = oldVNode.el;
+            var oldProps = oldVNode.props;
+            var newProps = newVNode.props;
+            // 更新props
+            for (var key in newProps) {
+                if (newProps[key] !== oldProps[key]) {
+                    patchProps(el, key, oldProps[key], newProps[key]);
+                }
+            }
+            // 清除新vnode中不存在的老prop
+            for (var key in oldProps) {
+                if (!(key in newProps)) {
+                    patchProps(el, key, oldProps[key], null);
+                }
+            }
+            // 更新子节点
+            updateElementChild(oldVNode, newVNode, el);
+        }
+        /**
          * 完成vnode的挂载更新
          * @param oldVNode 原vnode
          * @param newVNode 需要挂载更新的vnode
@@ -360,7 +431,7 @@
          */
         function patch(oldVNode, newVNode, container) {
             // 若新旧vnode类型不同，则卸载并重新挂载
-            if (oldVNode && oldVNode.type === newVNode.type) {
+            if (oldVNode && oldVNode.type !== newVNode.type) {
                 unmountElement(oldVNode);
                 oldVNode = null;
             }
@@ -368,6 +439,9 @@
             if (vnodeType === 'string') { // vnode为普通标签
                 if (!oldVNode) {
                     mountElement(newVNode, container); // 挂载vnode
+                }
+                else {
+                    updateElement(oldVNode, newVNode); // 更新vnode
                 }
             }
         }
@@ -403,23 +477,33 @@
                         console.log('parent');
                     }
                 } : {},
+                children: [{
+                        type: 'button',
+                        children: 'btn'
+                    }]
+            };
+            var vnode2 = {
+                type: 'span',
+                props: {
+                    onClick: function () {
+                        console.log('parent');
+                    }
+                },
                 children: [
                     {
-                        type: 'button',
-                        children: 'test',
-                        props: {
-                            style: {
-                                color: 'red'
-                            },
-                            onClick: function () {
-                                console.log('child');
-                                a.value = true;
-                            }
-                        }
+                        type: 'h1',
+                        children: 'fuck'
+                    },
+                    {
+                        type: 'p',
+                        children: 'shit'
                     }
                 ]
             };
             renderer.render(vnode, document.querySelector('#app'));
+            setTimeout(function () {
+                renderer.render(vnode2, document.querySelector('#app'));
+            }, 1000);
         });
     }
 

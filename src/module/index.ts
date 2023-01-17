@@ -17,22 +17,32 @@ export function test() {
                     console.log('parent')
                 }
             } : {},
+            children: [{
+                type: 'button',
+                children: 'btn'
+            }]
+        }
+        const vnode2: VNode = {
+            type: 'span',
+            props: {
+                onClick: () => {
+                    console.log('parent')
+                }
+            } ,
             children: [
                 {
-                    type: 'button',
-                    children: 'test',
-                    props: {
-                        style: {
-                            color: 'red'
-                        },
-                        onClick: () => {
-                            console.log('child')
-                            a.value = true
-                        }
-                    }
+                    type: 'h1',
+                    children: 'fuck'
+                },
+                {
+                    type: 'p',
+                    children: 'shit'
                 }
             ]
         }
         renderer.render(vnode, document.querySelector('#app'))
+        setTimeout(() => {
+            renderer.render(vnode2, document.querySelector('#app'))
+        }, 1000)
     })
 }

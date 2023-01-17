@@ -3,8 +3,8 @@ export type Renderer = {
 }
 
 export type VNode = {
-    type: string,
-    children: string | Array<VNode> | VNode,
+    type: string | VNode,
+    children: string | Array<VNode>,
     props?: any,
     el?: HTMLElement
 }
@@ -16,5 +16,6 @@ export interface Container extends HTMLElement {
 
 export interface Invoker extends Function {
     (event: Event): any,
-    value?: (event: Event) => any
+    value?: (event: Event) => any,
+    attachTime?: number
 }

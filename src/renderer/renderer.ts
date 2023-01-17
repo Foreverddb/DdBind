@@ -9,8 +9,8 @@ export function createRenderer(): Renderer {
      * @param el 目标dom
      * @param key 目标属性名
      * @param value 属性值
-      */
-    function shouldSetAsDomProps(el: Container, key: string, value: any ): boolean {
+     */
+    function shouldSetAsDomProps(el: Container, key: string, value: any): boolean {
         if (key === 'form' && el.tagName === 'INPUT') return false
         return key in el
     }
@@ -33,6 +33,8 @@ export function createRenderer(): Renderer {
                 if (!invoker) {
                     // 原来无事件处理函数则注册新的
                     invoker = el._invokers[eventName] = (event: Event) => {
+                        // 若事件触发事件早于绑定时间则不处理此事件
+                        if (event.timeStamp < invoker.attachTime) return
                         // 处理存在多个事件处理函数的情况
                         if (Array.isArray(invoker.value)) {
                             invoker.value.forEach(fn => fn(event))
@@ -41,6 +43,7 @@ export function createRenderer(): Renderer {
                         }
                     }
                     invoker.value = newValue
+                    invoker.attachTime = performance.now() // 记录此事件的绑定时间
                     el.addEventListener(eventName, invoker)
                 } else {
                     // 若有事件处理函数则可直接更新
@@ -81,7 +84,7 @@ export function createRenderer(): Renderer {
      * @param container 挂载容器
      */
     function mountElement(vnode: VNode, container: Container) {
-        const el: Container = vnode.el = document.createElement(vnode.type)
+        const el: Container = vnode.el = document.createElement(vnode.type as string)
         // 将每个child挂载到真实dom
         if (typeof vnode.children === 'string') {
             el.textContent = vnode.children
@@ -96,6 +99,7 @@ export function createRenderer(): Renderer {
                 patchProps(el, key, null, vnode.props[key])
             }
         }
+
         container.insertBefore(el, null)
     }
 
@@ -111,6 +115,74 @@ export function createRenderer(): Renderer {
     }
 
     /**
+     * 更新某节点的子节点
+     * @param oldVNode 旧vnode
+     * @param newVNode 新vnode
+     * @param container
+     */
+    function updateElementChild(oldVNode: VNode, newVNode: VNode, container: Container) {
+        if (typeof newVNode.children === 'string') { // 新vnode的children为字符串的情况
+            if (Array.isArray(oldVNode.children)) {
+                oldVNode.children.forEach(child => {
+                    unmountElement(child)
+                })
+            }
+            container.textContent = newVNode.children
+        } else if (Array.isArray(newVNode.children)) { // 新vnode的children类型为一组组件的情况
+            if (Array.isArray(oldVNode.children)) {
+                // 卸载后更新全部子节点
+                oldVNode.children.forEach(child => {
+                    unmountElement(child)
+                })
+                newVNode.children.forEach(child => {
+                    patch(null, child, container)
+                })
+            } else {
+                container.textContent = ''
+                newVNode.children.forEach(child => {
+                    patch(null, child, container)
+                })
+            }
+        } else { // 若新子节点不存在则挨个卸载
+            if (Array.isArray(oldVNode.children)) {
+                oldVNode.children.forEach(child => {
+                    unmountElement(child)
+                })
+            } else if (typeof oldVNode.children === 'string') {
+                container.textContent = ''
+            }
+        }
+    }
+
+    /**
+     * 更新修补vnode并重新挂载
+     * @param oldVNode
+     * @param newVNode
+     */
+    function updateElement(oldVNode: VNode, newVNode: VNode) {
+        const el = newVNode.el = oldVNode.el
+        const oldProps = oldVNode.props
+        const newProps = newVNode.props
+
+        // 更新props
+        for (const key in newProps) {
+            if (newProps[key] !== oldProps[key]) {
+                patchProps(el, key, oldProps[key], newProps[key])
+            }
+        }
+
+        // 清除新vnode中不存在的老prop
+        for (const key in oldProps) {
+            if (!(key in newProps)) {
+                patchProps(el, key, oldProps[key], null)
+            }
+        }
+
+        // 更新子节点
+        updateElementChild(oldVNode, newVNode, el)
+    }
+
+    /**
      * 完成vnode的挂载更新
      * @param oldVNode 原vnode
      * @param newVNode 需要挂载更新的vnode
@@ -118,21 +190,23 @@ export function createRenderer(): Renderer {
      */
     function patch(oldVNode: VNode, newVNode: VNode, container: Container): void {
         // 若新旧vnode类型不同，则卸载并重新挂载
-        if (oldVNode && oldVNode.type === newVNode.type) {
+        if (oldVNode && oldVNode.type !== newVNode.type) {
             unmountElement(oldVNode)
             oldVNode = null
         }
+
         const vnodeType = typeof newVNode.type
 
         if (vnodeType === 'string') { // vnode为普通标签
             if (!oldVNode) {
                 mountElement(newVNode, container) // 挂载vnode
             } else {
-                // 更新
+                updateElement(oldVNode, newVNode) // 更新vnode
             }
         } else if (vnodeType === 'object') { // TODO vnode为组件
 
-        } else {}
+        } else {
+        }
     }
 
     /**
