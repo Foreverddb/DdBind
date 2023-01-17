@@ -1,7 +1,5 @@
 import {ref} from "reactivity/ref";
 import {effect} from "core/index";
-import {watch} from "reactivity/watch";
-import {reactive} from "reactivity/reactive";
 import {createRenderer} from "renderer/renderer";
 import {VNode} from "types/renderer";
 import {VnodeUtil} from "renderer/vnode";
