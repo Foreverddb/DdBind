@@ -9,7 +9,9 @@
     "paths": {
       "types/*": ["src/types/*"],
       "core/*": ["src/core/*"],
-      "reactivity/*": ["src/reactivity/*"]
+      "reactivity/*": ["src/reactivity/*"],
+      "renderer/*": ["src/renderer/*"],
+      "compiler/*": ["src/compiler/*"]
     },
     "lib": [
       "dom",

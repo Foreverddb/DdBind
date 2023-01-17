@@ -1,4 +1,6 @@
 import {Container, Invoker, Renderer, VNode} from "types/renderer";
+import {CommentVnodeSymbol, TextVnodeSymbol} from "./vnode";
+import {error} from "../utils/debug";
 
 /**
  * 创建一个渲染器
@@ -167,19 +169,19 @@ export function createRenderer(): Renderer {
         // 更新props
         for (const key in newProps) {
             if (newProps[key] !== oldProps[key]) {
-                patchProps(el, key, oldProps[key], newProps[key])
+                patchProps(el as Container, key, oldProps[key], newProps[key])
             }
         }
 
         // 清除新vnode中不存在的老prop
         for (const key in oldProps) {
             if (!(key in newProps)) {
-                patchProps(el, key, oldProps[key], null)
+                patchProps(el as Container, key, oldProps[key], null)
             }
         }
 
         // 更新子节点
-        updateElementChild(oldVNode, newVNode, el)
+        updateElementChild(oldVNode, newVNode, el as Container)
     }
 
     /**
@@ -205,7 +207,23 @@ export function createRenderer(): Renderer {
             }
         } else if (vnodeType === 'object') { // TODO vnode为组件
 
-        } else {
+        } else if (vnodeType === 'symbol'){ // 标准普通标签以外的标签
+            if (newVNode.type === TextVnodeSymbol) { // 文本节点
+                if (__DEV__ && typeof newVNode.children !== 'string') {
+                    error(`text node requires children being type of "string", received type ${typeof newVNode.children}`, newVNode)
+                }
+                if (!oldVNode) {
+                    const el = newVNode.el = document.createTextNode(newVNode.children as string)
+                    container.insertBefore(el, null)
+                } else { // 若原节点存在则更新
+                    const el = newVNode.el = oldVNode.el
+                    if (newVNode.children !== oldVNode.children) {
+                        el.nodeValue = newVNode.children as string
+                    }
+                }
+            } else if (newVNode.type === CommentVnodeSymbol){
+
+            }
         }
     }
 

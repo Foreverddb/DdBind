@@ -22,7 +22,7 @@ function getConfig(isTargetingBrowser, buildType = 'dev') {
         ],
         output: {
             name: 'DdBind',
-            file: path.resolve(__dirname, `../dist/ddbind${isTargetingBrowser ? '.browser' : ''}.${buildType}.js`),
+            file: path.resolve(__dirname, `../dist/ddbind${isTargetingBrowser ? '.browser' : '.node'}.${buildType}.js`),
             format: isTargetingBrowser ? 'umd' : 'es',
             banner: '/*!\n' +
                 ' * ddb\'s mvvm-learning-framework \n' +
@@ -31,7 +31,9 @@ function getConfig(isTargetingBrowser, buildType = 'dev') {
                 ' */',
             exports: 'auto',
             globals: {
-                'reactivity': 'types/reactivity'
+                'reactivity': 'types/reactivity',
+                'renderer': 'types/renderer',
+                'compiler': 'types/compiler'
             }
         }
     }

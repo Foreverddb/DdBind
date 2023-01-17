@@ -2,8 +2,9 @@ import {ref} from "reactivity/ref";
 import {effect} from "core/index";
 import {watch} from "reactivity/watch";
 import {reactive} from "reactivity/reactive";
-import {createRenderer} from "../renderer/renderer";
+import {createRenderer} from "renderer/renderer";
 import {VNode} from "types/renderer";
+import {VnodeUtil} from "renderer/vnode";
 
 export function test() {
     const a = ref(false)
@@ -40,7 +41,8 @@ export function test() {
                 }
             ]
         }
-        renderer.render(vnode, document.querySelector('#app'))
+        const vnode3 = VnodeUtil.builder().setType('h1').setChildren('fuckme').build()
+        renderer.render(vnode3, document.querySelector('#app'))
         setTimeout(() => {
             renderer.render(vnode2, document.querySelector('#app'))
         }, 1000)

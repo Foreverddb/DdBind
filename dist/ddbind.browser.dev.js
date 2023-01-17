@@ -236,6 +236,52 @@
         return new Ref(value);
     }
 
+    var TextVnodeSymbol = Symbol('TextVnodeSymbol');
+    var CommentVnodeSymbol = Symbol('CommentVnodeSymbol');
+
+    var VnodeUtil = /** @class */ (function () {
+        function VnodeUtil() {
+        }
+        VnodeUtil.builder = function () {
+            return new VnodeBuilder();
+        };
+        return VnodeUtil;
+    }());
+    var VnodeImpl = /** @class */ (function () {
+        function VnodeImpl() {
+        }
+        return VnodeImpl;
+    }());
+    var VnodeBuilder = /** @class */ (function () {
+        function VnodeBuilder() {
+        }
+        VnodeBuilder.prototype.setType = function (type) {
+            this.type = type;
+            return this;
+        };
+        VnodeBuilder.prototype.setChildren = function (children) {
+            this.children = children;
+            return this;
+        };
+        VnodeBuilder.prototype.setProps = function (props) {
+            this.props = props;
+            return this;
+        };
+        VnodeBuilder.prototype.setEl = function (el) {
+            this.el = el;
+            return this;
+        };
+        VnodeBuilder.prototype.build = function () {
+            var _this = this;
+            var vnode = new VnodeImpl();
+            Object.keys(this).forEach(function (key) {
+                vnode[key] = _this[key];
+            });
+            return vnode;
+        };
+        return VnodeBuilder;
+    }());
+
     /**
      * 创建一个渲染器
      */
@@ -444,6 +490,25 @@
                     updateElement(oldVNode, newVNode); // 更新vnode
                 }
             }
+            else if (vnodeType === 'object') ;
+            else if (vnodeType === 'symbol') { // 标准普通标签以外的标签
+                if (newVNode.type === TextVnodeSymbol) { // 文本节点
+                    if (typeof newVNode.children !== 'string') {
+                        error("text node requires children being type of \"string\", received type ".concat(typeof newVNode.children), newVNode);
+                    }
+                    if (!oldVNode) {
+                        var el = newVNode.el = document.createTextNode(newVNode.children);
+                        container.insertBefore(el, null);
+                    }
+                    else { // 若原节点存在则更新
+                        var el = newVNode.el = oldVNode.el;
+                        if (newVNode.children !== oldVNode.children) {
+                            el.nodeValue = newVNode.children;
+                        }
+                    }
+                }
+                else if (newVNode.type === CommentVnodeSymbol) ;
+            }
         }
         /**
          * 渲染vnode到真实dom
@@ -470,7 +535,7 @@
         var a = ref(false);
         var renderer = createRenderer();
         effect(function () {
-            var vnode = {
+            ({
                 type: 'div',
                 props: a.value ? {
                     onClick: function () {
@@ -481,7 +546,7 @@
                         type: 'button',
                         children: 'btn'
                     }]
-            };
+            });
             var vnode2 = {
                 type: 'span',
                 props: {
@@ -500,7 +565,8 @@
                     }
                 ]
             };
-            renderer.render(vnode, document.querySelector('#app'));
+            var vnode3 = VnodeUtil.builder().setType('h1').setChildren('fuckme').build();
+            renderer.render(vnode3, document.querySelector('#app'));
             setTimeout(function () {
                 renderer.render(vnode2, document.querySelector('#app'));
             }, 1000);

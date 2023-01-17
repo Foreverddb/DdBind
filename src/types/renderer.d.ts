@@ -2,11 +2,11 @@ export type Renderer = {
     render: (vnode, container) => any
 }
 
-export type VNode = {
-    type: string | VNode,
-    children: string | Array<VNode>,
-    props?: any,
-    el?: HTMLElement
+export interface VNode  {
+    type: string | symbol
+    children: string | Array<VNode>
+    props?: any
+    el?: Text | Container
 }
 
 export interface Container extends HTMLElement {
