@@ -33,7 +33,8 @@ function getConfig(isTargetingBrowser, buildType = 'dev') {
             globals: {
                 'reactivity': 'types/reactivity',
                 'renderer': 'types/renderer',
-                'compiler': 'types/compiler'
+                'compiler': 'types/compiler',
+                "ddbind": "types/ddbind"
             }
         }
     }

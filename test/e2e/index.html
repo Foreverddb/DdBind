@@ -6,10 +6,17 @@
     <script src="../../dist/ddbind.browser.dev.js"></script>
 </head>
 <body>
-    <div id="app"></div>
-    <div id="app-t"></div>
+    <div id="app">
+        <h1>test</h1>
+    </div>
   <script>
-      DdBind.test()
+      let app = DdBind.createApp({
+          setup() {
+              console.log('ssss')
+              return {}
+          }
+      })
+      app.mount('#app')
   </script>
 </body>
 </html>

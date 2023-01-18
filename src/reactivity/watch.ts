@@ -1,5 +1,6 @@
 import {effect} from "core/effect";
 import {Ref} from "reactivity/ref";
+import {warn} from "utils/debug";
 
 /**
  * 侦听属性的回调函数类型
@@ -29,6 +30,9 @@ function traverseRef(value: any, traversed = new Set()) {
  * @param callback 对象值发生变化时执行的回调
  */
 export function watch<T>(target: object | (() => any), callback: WatchCallback<T>) {
+    if (__DEV__ && typeof target !== "object") {
+        warn(`watch() requires a object as watching target, received type is ${typeof target}`, target)
+    }
     let getter // 需要注册的getter函数
     // 若为用户定义的getter则直接使用
     if (typeof target === 'function') {

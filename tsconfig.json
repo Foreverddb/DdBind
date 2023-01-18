@@ -11,7 +11,8 @@
       "core/*": ["src/core/*"],
       "reactivity/*": ["src/reactivity/*"],
       "renderer/*": ["src/renderer/*"],
-      "compiler/*": ["src/compiler/*"]
+      "compiler/*": ["src/compiler/*"],
+      "utils/*": ["src/utils/*"]
     },
     "lib": [
       "dom",
