@@ -1,4 +1,4 @@
-import {ParserContext, ParserModes, TemplateAst} from "types/compiler";
+import {ParserContext, ParserModes, TemplateAST} from "types/compiler";
 import {parseChildren} from "compiler/parser/html-parser";
 import {BLANK_CHAR_REG} from "compiler/parser/regexp";
 
@@ -6,7 +6,7 @@ import {BLANK_CHAR_REG} from "compiler/parser/regexp";
  * 解析HTML文本模版并转化为模版AST
  * @param template HTML文本
  */
-export function parse(template: string): TemplateAst {
+export function parse(template: string): TemplateAST {
     // 解析器上下文对象
     const context: ParserContext = {
         source: template,
@@ -31,7 +31,7 @@ export function parse(template: string): TemplateAst {
     // 先清除两端空白
     context.advanceSpaces()
     context.trimEndSpaces()
-    const nodes: Array<TemplateAst> = parseChildren(context, [])
+    const nodes: Array<TemplateAST> = parseChildren(context, [])
 
     return {
         type: 'Root',

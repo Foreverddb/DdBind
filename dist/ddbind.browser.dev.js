@@ -2291,7 +2291,20 @@
             // 根据propName来进行不同类型属性的处理
             = void 0;
             // 根据propName来进行不同类型属性的处理
-            if (propName.startsWith('@') || propName.startsWith('d-')) {
+            if (propName.startsWith('@') || propName.startsWith('d-on:')) {
+                prop = {
+                    type: 'Event',
+                    // 事件名
+                    name: propName.startsWith('@')
+                        ? propName.slice(1, propName.length)
+                        : propName.slice(5, propName.length),
+                    exp: {
+                        type: 'Expression',
+                        content: propValue
+                    }
+                };
+            }
+            else if (propName.startsWith('d-')) {
                 prop = {
                     type: 'Directive',
                     name: propName,
@@ -2573,6 +2586,239 @@
         };
     }
 
+    /**
+     * 深度优先遍历节点
+     * @param templateAST 需要遍历的ast
+     * @param context 上下文对象
+     */
+    function traverseNode(templateAST, context) {
+        // debugger
+        context.currentNode = templateAST;
+        var exitFns = [];
+        // 对当前节点进行转换操作
+        var transforms = context.nodeTransforms;
+        for (var i_1 = 0; i_1 < transforms.length; i_1++) {
+            var onExit = transforms[i_1](context.currentNode, context); // 转换函数的返回函数作为退出阶段的回调函数
+            if (onExit) {
+                exitFns.push(onExit);
+            }
+            if (!context.currentNode)
+                return; // 若转换后当前node不存在则停止操作
+        }
+        // 遍历子节点进行转换操作
+        var children = context.currentNode.children;
+        if (children) {
+            for (var i_2 = 0; i_2 < children.length; i_2++) {
+                context.parent = context.currentNode;
+                context.childIndex = i_2;
+                // 递归透传context
+                traverseNode(children[i_2], context);
+            }
+        }
+        // 退出阶段
+        var i = exitFns.length;
+        while (i--) {
+            exitFns[i]();
+        }
+    }
+
+    /**
+     * 创建StringLiteral型的JsAST
+     * @param value string值
+     */
+    function createStringLiteral(value) {
+        return {
+            type: 'StringLiteral',
+            value: value
+        };
+    }
+    /**
+     * 创建CommentLiteral型的JsAST
+     * @param value 注释值
+     */
+    function createCommentLiteral(value) {
+        return {
+            type: 'CommentLiteral',
+            value: value
+        };
+    }
+    /**
+     * 创建Identifier型的JsAST
+     * @param name identifier值
+     */
+    function createIdentifier(name) {
+        return {
+            type: 'Identifier',
+            name: name
+        };
+    }
+    /**
+     * 创建ArrayExpression型的JsAST
+     * @param elements JsAST数组
+     */
+    function createArrayExpression(elements) {
+        return {
+            type: 'ArrayExpression',
+            elements: elements
+        };
+    }
+    /**
+     * 创建CallExpression型的JsAST
+     * @param callee 要call的函数名
+     * @param args 传入的参数
+     */
+    function createCallExpression(callee, args) {
+        return {
+            type: 'CallExpression',
+            callee: createIdentifier(callee),
+            arguments: args
+        };
+    }
+    /**
+     * 创建表达式型的JsAST
+     * @param value 表达式字符串
+     */
+    function createExpressionLiteral(value) {
+        return {
+            type: 'ExpressionLiteral',
+            value: value
+        };
+    }
+    /**
+     * 转换文本节点
+     * @param node 目标节点
+     */
+    function transformText(node) {
+        if (node.type !== 'Text') {
+            return;
+        }
+        node.jsNode = createStringLiteral(node.content);
+    }
+    /**
+     * 转换注释节点
+     * @param node 目标节点
+     */
+    function transformComment(node) {
+        if (node.type !== 'Comment') {
+            return;
+        }
+        node.jsNode = createCommentLiteral(node.content);
+    }
+    /**
+     * 转换插值节点
+     * @param node 目标节点
+     */
+    function transformInterpolation(node) {
+        if (node.type !== 'Interpolation') {
+            return;
+        }
+        var callExp = createCallExpression('_s', [
+            createExpressionLiteral(node.content)
+        ]);
+        node.jsNode = callExp;
+    }
+    /**
+     * 转换标签节点
+     * @param node 目标节点
+     */
+    function transformElement(node) {
+        // 置于退出阶段的回调函数，保证子节点全部处理完毕
+        return function () {
+            if (node.type !== 'Element') {
+                return;
+            }
+            // 创建_h函数的调用
+            var callExp = createCallExpression('_h', [
+                createStringLiteral(node.tag)
+            ]);
+            // _h第二个参数为解析node的属性值
+            if (node.props && node.props.length > 0) {
+                var elementDescriptor_1 = {
+                    type: 'ElementDescriptor',
+                    directives: [],
+                    on: {},
+                    attrs: {}
+                };
+                node.props.forEach(function (prop) {
+                    if (prop.type === 'Directive') {
+                        elementDescriptor_1.directives.push({
+                            name: prop.name.slice(2, prop.name.length),
+                            rawName: prop.name,
+                            expression: prop.exp.content
+                        });
+                    }
+                    else if (prop.type === 'Event') {
+                        elementDescriptor_1.on[prop.name] = prop.exp.content;
+                    }
+                    else if (prop.type === 'Attribute') {
+                        elementDescriptor_1.attrs[prop.name] = prop.value;
+                    }
+                });
+                callExp.arguments.push(elementDescriptor_1);
+            }
+            else {
+                callExp.arguments.push(null);
+            }
+            // _h第三个参数为全部子节点
+            node.children.length === 1
+                ? callExp.arguments.push(node.children[0].jsNode)
+                : callExp.arguments.push(createArrayExpression(node.children.map(function (c) { return c.jsNode; })));
+            node.jsNode = callExp;
+        };
+    }
+    function transformRoot(node) {
+        // 置于退出阶段的回调函数，保证子节点全部处理完毕
+        return function () {
+            if (node.type !== 'Root') {
+                return;
+            }
+            var vnodeJSAST = node.children[0].jsNode;
+            node.jsNode = {
+                type: 'FunctionDeclaration',
+                id: { type: 'Identifier', name: 'render' },
+                body: [{
+                        type: 'ReturnStatement',
+                        return: vnodeJSAST
+                    }]
+            };
+        };
+    }
+
+    /**
+     * 将模版AST转换为JS AST
+     * @param templateAST 目标模版AST
+     */
+    function transform(templateAST) {
+        var context = {
+            currentNode: null,
+            childIndex: 0,
+            parent: null,
+            nodeTransforms: [
+                transformText,
+                transformComment,
+                transformInterpolation,
+                transformElement,
+                transformRoot
+            ]
+        };
+        traverseNode(templateAST, context);
+        return templateAST.jsNode;
+    }
+
+    /**
+     * 根据jsAST生成渲染函数代码
+     * @param jsAST 目标jsAST
+     */
+    function generate(jsAST) {
+        var context = {
+            code: '',
+            push: function (code) {
+                context.code += code;
+            }
+        };
+        return context.code;
+    }
+
     var Compiler = /** @class */ (function () {
         function Compiler(el, vm) {
             this.$el = el;
@@ -2582,9 +2828,13 @@
             }
         }
         Compiler.prototype.compileElement = function (el) {
-            var source = el.innerHTML;
-            var templateAst = parse(source);
-            console.log(templateAst);
+            var source = el.outerHTML;
+            var templateAST = parse(source);
+            console.log(templateAST);
+            var jsAST = transform(templateAST);
+            console.log(jsAST);
+            var code = generate();
+            console.log(code);
         };
         Compiler.prototype.compile = function () {
         };

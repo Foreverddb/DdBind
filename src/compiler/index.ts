@@ -1,6 +1,8 @@
 import {DdBind} from "DdBind";
 import {parse} from "compiler/parser";
-import {TemplateAst} from "types/compiler";
+import {JavascriptAST, TemplateAST} from "types/compiler";
+import {transform} from "compiler/transformer";
+import {generate} from "compiler/generator";
 
 export class Compiler {
     $el: HTMLElement
@@ -15,9 +17,16 @@ export class Compiler {
     }
 
     private compileElement(el: HTMLElement) {
-        const source = el.innerHTML
-        const templateAst: TemplateAst = parse(source)
-        console.log(templateAst)
+        const source = el.outerHTML
+
+        const templateAST: TemplateAST = parse(source)
+        console.log(templateAST)
+
+        const jsAST: JavascriptAST = transform(templateAST)
+        console.log(jsAST)
+
+        const code: string = generate(jsAST)
+        console.log(code)
     }
 
     private compile() {

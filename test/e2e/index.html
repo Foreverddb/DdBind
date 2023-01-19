@@ -10,10 +10,10 @@
     <!-- 测试一下注释 -->
     <h1 @click="test()">
         testtt &lt;&#60;
-        <div>ttttrt</div>
+        <div d-on:click="test()">ttttrt</div>
     </h1>
     <div d-model="ddd">ddd</div>
-    <div id="fuck">{{ foo }}</div>
+    <div id="fuck">ss{{ foo }}sb</div>
 </div>
 <script>
     let app = DdBind.createApp({

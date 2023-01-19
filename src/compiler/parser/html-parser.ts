@@ -1,4 +1,12 @@
-import {DirectiveNode, ParserContext, ParserModes, AttributeNode, TemplateAst, ExpressionNode} from "types/compiler";
+import {
+    DirectiveNode,
+    ParserContext,
+    ParserModes,
+    AttributeNode,
+    TemplateAST,
+    ExpressionNode,
+    EventNode
+} from "types/compiler";
 import {error} from "utils/debug";
 
 import {
@@ -21,11 +29,11 @@ import {CCR_REPLACEMENTS, decodeMap, decodeMapKeyMaxLen} from "compiler/parser/r
  * @param context 上下文对象
  * @param parenStack 父节点栈
  */
-export function parseChildren(context: ParserContext, parenStack: Array<TemplateAst>): Array<TemplateAst> {
-    let nodes: Array<TemplateAst> = []
+export function parseChildren(context: ParserContext, parenStack: Array<TemplateAST>): Array<TemplateAST> {
+    let nodes: Array<TemplateAST> = []
 
     while (!isEnd(context, parenStack)) {
-        let node: TemplateAst
+        let node: TemplateAST
         // // 若直到下一个标签开始全为空白，则清除空白内容
         // if (/^[\t\r\n\f ]*</.test(context.source)) {
         //     context.advanceSpaces()
@@ -67,7 +75,7 @@ export function parseChildren(context: ParserContext, parenStack: Array<Template
  * @param context 上下文对象
  * @param parenStack 父节点栈
  */
-function isEnd(context: ParserContext, parenStack: Array<TemplateAst>): boolean {
+function isEnd(context: ParserContext, parenStack: Array<TemplateAST>): boolean {
     if (!context.source || context.source === '') return true
     // 当存在最靠近栈顶的父节点与当前处理的结束标签一致时说明应停止当前状态机
     for (let i = parenStack.length - 1; i >= 0; i--) {
@@ -83,9 +91,9 @@ function isEnd(context: ParserContext, parenStack: Array<TemplateAst>): boolean 
  * 解析HTML标签的属性
  * @param context 上下文对象
  */
-function parseAttributes(context: ParserContext): Array<DirectiveNode | AttributeNode> {
+function parseAttributes(context: ParserContext): Array<DirectiveNode | AttributeNode | EventNode> {
     const {advanceBy, advanceSpaces} = context
-    const props: Array<DirectiveNode | AttributeNode> = []
+    const props: Array<DirectiveNode | AttributeNode | EventNode> = []
 
     while (
         !context.source.startsWith('>') && !context.source.startsWith('/')
@@ -119,9 +127,21 @@ function parseAttributes(context: ParserContext): Array<DirectiveNode | Attribut
         }
         advanceSpaces()
 
-        let prop: DirectiveNode | AttributeNode
+        let prop: DirectiveNode | AttributeNode | EventNode
         // 根据propName来进行不同类型属性的处理
-        if (propName.startsWith('@') || propName.startsWith('d-')) {
+        if (propName.startsWith('@') || propName.startsWith('d-on:')) {
+            prop = {
+                type: 'Event',
+                // 事件名
+                name: propName.startsWith('@')
+                    ? propName.slice(1, propName.length)
+                    : propName.slice(5, propName.length),
+                exp: {
+                    type: 'Expression',
+                    content: propValue
+                }
+            } as EventNode
+        } else if (propName.startsWith('d-')) {
             prop = {
                 type: 'Directive',
                 name: propName,
@@ -149,7 +169,7 @@ function parseAttributes(context: ParserContext): Array<DirectiveNode | Attribut
  * @param context 上下文对象
  * @param type 标签类型
  */
-function parseTag(context: ParserContext, type: string = 'start'): TemplateAst {
+function parseTag(context: ParserContext, type: string = 'start'): TemplateAST {
     const {advanceBy, advanceSpaces} = context
     // 根据标签类型使用不同的正则
     const match: RegExpExecArray = type === 'start'
@@ -160,7 +180,7 @@ function parseTag(context: ParserContext, type: string = 'start'): TemplateAst {
     advanceBy(match[0].length) // 消费该标签内容
     advanceSpaces()
 
-    const props: Array<DirectiveNode | AttributeNode> = parseAttributes(context) // 解析标签属性
+    const props: Array<DirectiveNode | AttributeNode | EventNode> = parseAttributes(context) // 解析标签属性
 
     const isSelfClosing = context.source.startsWith('/>')
     advanceBy(isSelfClosing ? 2 : 1) // 自闭合标签则消费'/>'否则消费'>'
@@ -171,7 +191,7 @@ function parseTag(context: ParserContext, type: string = 'start'): TemplateAst {
         props,
         children: [],
         isSelfClosing
-    } as TemplateAst;
+    } as TemplateAST;
 }
 
 /**
@@ -179,8 +199,8 @@ function parseTag(context: ParserContext, type: string = 'start'): TemplateAst {
  * @param context 上下文对象
  * @param parenStack 父节点栈
  */
-function parseElement(context: ParserContext, parenStack: Array<TemplateAst>): TemplateAst {
-    const element: TemplateAst = parseTag(context)
+function parseElement(context: ParserContext, parenStack: Array<TemplateAST>): TemplateAST {
+    const element: TemplateAST = parseTag(context)
     if (element.isSelfClosing) return element // 自闭合标签无子节点，直接返回
 
     // 根据标签类型切换解析模式
@@ -209,7 +229,7 @@ function parseElement(context: ParserContext, parenStack: Array<TemplateAst>): T
  * 解析注释标签
  * @param context 上下文对象
  */
-function parseComment(context: ParserContext): TemplateAst {
+function parseComment(context: ParserContext): TemplateAST {
     context.advanceBy('<!--'.length)
     const closeIndex = context.source.indexOf('-->')
 
@@ -225,10 +245,10 @@ function parseComment(context: ParserContext): TemplateAst {
     return {
         type: 'Comment',
         content
-    } as TemplateAst;
+    } as TemplateAST;
 }
 
-function parseCDATA(context: ParserContext, parenStack: Array<TemplateAst>) {
+function parseCDATA(context: ParserContext, parenStack: Array<TemplateAST>) {
     return undefined;
 }
 
@@ -236,7 +256,7 @@ function parseCDATA(context: ParserContext, parenStack: Array<TemplateAst>) {
  * 解析文本插值
  * @param context 上下文对象
  */
-function parseInterpolation(context: ParserContext): TemplateAst {
+function parseInterpolation(context: ParserContext): TemplateAST {
     context.advanceBy('{{'.length)
     const closeIndex = context.source.indexOf('}}')
 
@@ -255,14 +275,14 @@ function parseInterpolation(context: ParserContext): TemplateAst {
             type: 'Expression',
             content: decodeHTMLText(content)
         } as ExpressionNode
-    } as TemplateAst;
+    } as TemplateAST;
 }
 
 /**
  * 解析纯文本内容
  * @param context 上下文对象
  */
-function parseText(context: ParserContext): TemplateAst {
+function parseText(context: ParserContext): TemplateAST {
     let lastIndex: number = context.source.length
     const lessThanSignIndex: number = context.source.indexOf('<') // 寻找标签<符
     const delimiterIndex: number = context.source.indexOf('{{') // 寻找文本插值符{{
@@ -281,7 +301,7 @@ function parseText(context: ParserContext): TemplateAst {
     return {
         type: 'Text',
         content: decodeHTMLText(content)
-    } as TemplateAst;
+    } as TemplateAST;
 }
 
 /**

@@ -4,9 +4,15 @@ import {VNode} from "types/renderer";
 
 export class DdBind {
     $el: HTMLElement
+
     $options: DdBindOptions
+
     $compile: Compiler
+
     $vnode: VNode
+
+    [propName: string]: any;
+
     constructor(options: DdBindOptions) {
         this.$options = options
     }

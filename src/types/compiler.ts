@@ -21,7 +21,7 @@ export interface ParserContext {
 }
 
 // 模版抽象语法树
-export interface TemplateAst {
+export interface TemplateAST {
     // 节点类型：Root, Element, Text
     type: 'Text' | 'Expression' | 'Element' | 'Root' | 'Interpolation' | 'Comment',
 
@@ -35,10 +35,12 @@ export interface TemplateAst {
     content?: string | ExpressionNode,
 
     // 子节点
-    children?: Array<TemplateAst>,
+    children?: Array<TemplateAST>,
 
     // 节点参数
-    props?: Array<DirectiveNode | AttributeNode>
+    props?: Array<DirectiveNode | AttributeNode | EventNode>
+
+    jsNode?: JavascriptNode
 }
 
 // 指令节点
@@ -47,6 +49,17 @@ export interface DirectiveNode {
 
     // 指令名
     name: string,
+
+    // 指令表达式
+    exp: ExpressionNode
+}
+
+export interface EventNode {
+    type: 'Event',
+
+    // 事件名
+    name: string,
+
     exp: ExpressionNode
 }
 
@@ -67,5 +80,73 @@ export interface ExpressionNode {
 
     // 表达式字符串
     content: string
+}
+
+
+// js抽象语法树
+export interface JavascriptAST extends JavascriptNode{
+    type: 'FunctionDeclaration',
+    id: IdentifierNode,
+    body: Array<{
+        type: 'ReturnStatement',
+        return: CallExpressionNode
+    }>
+}
+export interface IdentifierNode extends JavascriptNode{
+    type: 'Identifier',
+    name: string
+}
+
+export interface ArgumentNode extends JavascriptNode{
+    type: 'StringLiteral' | 'ArrayExpression' | 'CommentLiteral' | 'ExpressionLiteral',
+    value?: string,
+    elements?: Array<JavascriptNode>
+}
+
+export interface CallExpressionNode extends JavascriptNode{
+    type: 'CallExpression',
+    callee: IdentifierNode,
+    arguments: Array<JavascriptNode>
+}
+
+export interface JavascriptNode {
+    type: string
+}
+
+export interface TransformerContext {
+    // 当前正在转换的节点
+    currentNode: TemplateAST,
+
+    // 储存当前子节点在父节点中的位置索引
+    childIndex: number,
+
+    // currentNode的父节点
+    parent: TemplateAST,
+
+    nodeTransforms: Array<(templateAST: TemplateAST, context?: TransformerContext) => Function>
+}
+
+export interface ElementDescriptor extends JavascriptNode{
+    type: 'ElementDescriptor',
+    directives: Array<DirectiveDescriptor>,
+    on: {
+        [propName: string]: any
+    },
+    attrs: {
+        [propName: string]: string
+    }
+}
+
+export interface DirectiveDescriptor {
+    name: string,
+    rawName: string,
+    expression: string
+}
+
+
+// code生成器上下文
+export interface GeneratorContext {
+    code: string,
+    push: (code: string) => void
 }
 
