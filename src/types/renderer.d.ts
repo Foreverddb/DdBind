@@ -6,7 +6,7 @@ export interface VNode  {
     type: string | symbol
     children: string | Array<VNode>
     props?: any
-    el?: Text | Container
+    el?: Text | Container | Comment
 }
 
 export interface Container extends HTMLElement {

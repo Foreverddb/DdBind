@@ -15,13 +15,7 @@ export class Compiler {
     }
 
     private compileElement(el: HTMLElement) {
-        // const source = el.innerHTML
-        const source = `<h1 @click="test()">
-            testtt &lt;&#60;
-            <div>ttttrt</div>
-        </h1>
-        <div d-model="ddd">ddd</div>
-        <div id="fuck"></div>`
+        const source = el.innerHTML
         const templateAst: TemplateAst = parse(source)
         console.log(templateAst)
     }

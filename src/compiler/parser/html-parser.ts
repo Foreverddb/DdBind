@@ -1,12 +1,18 @@
-import {DirectiveNode, ParserContext, ParserModes, AttributeNode, TemplateAst} from "types/compiler";
+import {DirectiveNode, ParserContext, ParserModes, AttributeNode, TemplateAst, ExpressionNode} from "types/compiler";
 import {error} from "utils/debug";
+
 import {
     ALPHABET_OR_NUMBER_REG,
     HTML_END_TAG_REG,
-    HTML_RAWTEXT_TAG_REG, HTML_REFERENCE_HEAD_REG, HTML_REFERENCE_HEX_REG, HTML_REFERENCE_NUMBER_REG,
+    HTML_RAWTEXT_TAG_REG,
+    HTML_REFERENCE_HEAD_REG,
+    HTML_REFERENCE_HEX_REG,
+    HTML_REFERENCE_NUMBER_REG,
     HTML_START_TAG_REG,
-    HTML_TAG_PROP_REG, HTML_TAG_PROP_VALUE_WITHOUT_QUOTE
+    HTML_TAG_PROP_REG,
+    HTML_TAG_PROP_VALUE_WITHOUT_QUOTE
 } from "compiler/parser/regexp";
+
 import {CCR_REPLACEMENTS, decodeMap, decodeMapKeyMaxLen} from "compiler/parser/references";
 
 
@@ -199,17 +205,57 @@ function parseElement(context: ParserContext, parenStack: Array<TemplateAst>): T
     return element;
 }
 
-function parseComment(context: ParserContext) {
-    return undefined;
+/**
+ * 解析注释标签
+ * @param context 上下文对象
+ */
+function parseComment(context: ParserContext): TemplateAst {
+    context.advanceBy('<!--'.length)
+    const closeIndex = context.source.indexOf('-->')
+
+    if (closeIndex < 0) {
+        error(`the comment block lacks the end tag "-->"`, context.source)
+    }
+
+    // 获取注释内容
+    const content = context.source.slice(0, closeIndex)
+    context.advanceBy(content.length)
+    context.advanceBy('-->'.length)
+
+    return {
+        type: 'Comment',
+        content
+    } as TemplateAst;
 }
 
 function parseCDATA(context: ParserContext, parenStack: Array<TemplateAst>) {
     return undefined;
 }
 
+/**
+ * 解析文本插值
+ * @param context 上下文对象
+ */
+function parseInterpolation(context: ParserContext): TemplateAst {
+    context.advanceBy('{{'.length)
+    const closeIndex = context.source.indexOf('}}')
 
-function parseInterpolation(context: ParserContext) {
-    return undefined;
+    if (closeIndex < 0) {
+        error(`the interpolation block lacks the end tag "}}"`, context.source)
+    }
+
+    // 获取插值表达式
+    const content = context.source.slice(0, closeIndex)
+    context.advanceBy(content.length)
+    context.advanceBy('}}'.length)
+
+    return {
+        type: 'Interpolation',
+        content: {
+            type: 'Expression',
+            content: decodeHTMLText(content)
+        } as ExpressionNode
+    } as TemplateAst;
 }
 
 /**

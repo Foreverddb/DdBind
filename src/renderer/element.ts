@@ -218,7 +218,18 @@ export function patch(oldVNode: VNode, newVNode: VNode, container: Container): v
                 }
             }
         } else if (newVNode.type === CommentVnodeSymbol){
-
+            if (__DEV__ && typeof newVNode.children !== 'string') {
+                error(`comment node requires children being type of "string", received type ${typeof newVNode.children}`, newVNode)
+            }
+            if (!oldVNode) {
+                const el = newVNode.el = document.createComment(newVNode.children as string)
+                container.insertBefore(el, null)
+            } else { // 若原节点存在则更新
+                const el = newVNode.el = oldVNode.el
+                if (newVNode.children !== oldVNode.children) {
+                    el.nodeValue = newVNode.children as string
+                }
+            }
         }
     }
 }

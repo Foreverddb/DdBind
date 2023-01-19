@@ -2208,7 +2208,7 @@
                 if (context.mode === 0 /* ParserModes.DATA */ && context.source[0] === '<') {
                     if (context.source[1] === '!') {
                         if (context.source.startsWith('<!--')) { // 注释标签开头
-                            node = parseComment();
+                            node = parseComment(context);
                         }
                         else if (context.source.startsWith('<![CDATA[')) { // CDATA标签
                             node = parseCDATA();
@@ -2224,7 +2224,7 @@
                 }
                 else if (context.source.startsWith('{{')) { // 解析文本插值
                     // 插值解析
-                    node = parseInterpolation();
+                    node = parseInterpolation(context);
                 }
             }
             // 若node不存在则说明处于非DATA模式，一律当作text处理
@@ -2368,14 +2368,49 @@
         }
         return element;
     }
+    /**
+     * 解析注释标签
+     * @param context 上下文对象
+     */
     function parseComment(context) {
-        return undefined;
+        context.advanceBy('<!--'.length);
+        var closeIndex = context.source.indexOf('-->');
+        if (closeIndex < 0) {
+            error("the comment block lacks the end tag \"-->\"", context.source);
+        }
+        // 获取注释内容
+        var content = context.source.slice(0, closeIndex);
+        context.advanceBy(content.length);
+        context.advanceBy('-->'.length);
+        return {
+            type: 'Comment',
+            content: content
+        };
     }
     function parseCDATA(context, parenStack) {
         return undefined;
     }
+    /**
+     * 解析文本插值
+     * @param context 上下文对象
+     */
     function parseInterpolation(context) {
-        return undefined;
+        context.advanceBy('{{'.length);
+        var closeIndex = context.source.indexOf('}}');
+        if (closeIndex < 0) {
+            error("the interpolation block lacks the end tag \"}}\"", context.source);
+        }
+        // 获取插值表达式
+        var content = context.source.slice(0, closeIndex);
+        context.advanceBy(content.length);
+        context.advanceBy('}}'.length);
+        return {
+            type: 'Interpolation',
+            content: {
+                type: 'Expression',
+                content: decodeHTMLText(content)
+            }
+        };
     }
     /**
      * 解析纯文本内容
@@ -2547,8 +2582,7 @@
             }
         }
         Compiler.prototype.compileElement = function (el) {
-            // const source = el.innerHTML
-            var source = "<h1 @click=\"test()\">\n            testtt &lt;&#60;\n            <div>ttttrt</div>\n        </h1>\n        <div d-model=\"ddd\">ddd</div>\n        <div id=\"fuck\"></div>";
+            var source = el.innerHTML;
             var templateAst = parse(source);
             console.log(templateAst);
         };
