@@ -1,6 +1,8 @@
 import {DdBindOptions} from "types/ddbind";
 import {Compiler} from "compiler/index";
-import {VNode} from "types/renderer";
+import {Renderer, VNode} from "types/renderer";
+import {effect} from "core/effect";
+import {createRenderer} from "renderer/index";
 
 export class DdBind {
     $el: HTMLElement
@@ -9,7 +11,15 @@ export class DdBind {
 
     $compile: Compiler
 
+    $render: Function
+
+    $renderer: Renderer
+
     $vnode: VNode
+
+    _h: Function
+    _v: Function
+    _s: Function
 
     [propName: string]: any;
 
@@ -30,7 +40,17 @@ export class DdBind {
         }
 
         this.$el = container
+
         this.$compile = new Compiler(container, this) // 创建对应编译器
+
+        this.$renderer = createRenderer() // 创建渲染器
+        Object.assign(this, this.$options.setup()) // 将setup返回值绑定到vm对象上
+
+        // 注册响应式数据，当数据改变时重新渲染
+        effect(() => {
+            this.$vnode = this.$render() // 挂载并渲染vnode
+            this.$renderer.render(this.$vnode, this.$el)
+        })
 
     }
 }

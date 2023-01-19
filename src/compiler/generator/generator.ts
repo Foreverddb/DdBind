@@ -4,9 +4,15 @@ import {
     JavascriptNode,
     ReturnStatementNode,
     CallExpressionNode,
-    ArgumentNode, ElementDescriptor
+    ArgumentNode,
+    PairNode
 } from "types/compiler";
 
+/**
+ * 对任意JsAST节点进行生成代码操作
+ * @param node
+ * @param context
+ */
 export function genNode(node: JavascriptNode, context: GeneratorContext) {
     switch (node.type) {
         case "FunctionDeclaration":
@@ -24,10 +30,14 @@ export function genNode(node: JavascriptNode, context: GeneratorContext) {
         case "ArrayExpression":
             genArrayExpression(node as ArgumentNode, context)
             break
-        case "ElementDescriptor":
-            genElementDescriptor(node as ElementDescriptor, context)
-            break
         case "ExpressionLiteral":
+            genExpressionLiteral(node as ArgumentNode, context)
+            break
+        case "KeyValuePair":
+            genKeyValuePair(node as PairNode, context)
+            break
+        case "ObjectExpression":
+            genObjectExpression(node as ArgumentNode, context)
             break
     }
 }
@@ -52,7 +62,7 @@ function genFunctionDeclaration(node: FunctionDeclNode, context: GeneratorContex
 }
 
 /**
- * 生成返回型代码
+ * 生成返回值代码
  * @param node 目标节点
  * @param context 上下文对象
  */
@@ -62,6 +72,11 @@ function genReturnStatement(node: ReturnStatementNode, context: GeneratorContext
     genNode(node.return, context)
 }
 
+/**
+ * 生成函数调用表达式代码
+ * @param node 目标节点
+ * @param context 上下文对象
+ */
 function genCallExpression(node: CallExpressionNode, context: GeneratorContext) {
     const {push} = context
     const {callee, arguments: args} = node
@@ -77,7 +92,7 @@ function genCallExpression(node: CallExpressionNode, context: GeneratorContext) 
  * @param context 上下文对象
  */
 function genNodeList(nodes: Array<JavascriptNode>, context: GeneratorContext) {
-    const {push} = context
+    const {push, indent, deIndent} = context
     for (let i = 0; i < nodes.length; i++) {
         const node: JavascriptNode = nodes[i]
         genNode(node, context)
@@ -94,6 +109,8 @@ function genNodeList(nodes: Array<JavascriptNode>, context: GeneratorContext) {
  */
 function genStringLiteral(node: ArgumentNode, context: GeneratorContext) {
     const {push} = context
+    // 去除换行符以免影响代码运行
+    node.value = (node.value as string).replaceAll(/\n/g, ' ')
     // 对于字符串字面量，只需要追加与 node.value 对应的字符串即可
     push(`'${node.value}'`)
 }
@@ -104,46 +121,53 @@ function genStringLiteral(node: ArgumentNode, context: GeneratorContext) {
  * @param context 上下文对象
  */
 function genArrayExpression(node: ArgumentNode, context: GeneratorContext) {
-    const {push} = context
+    const {push, indent, deIndent} = context
     push('[')
+    indent()
+
     genNodeList(node.elements, context)
+
+    deIndent()
     push(']')
 }
 
-function genElementDescriptor(node: ElementDescriptor, context: GeneratorContext) {
+/**
+ * 生成js表达式代码
+ * @param node 目标节点
+ * @param context 上下文对象
+ */
+function genExpressionLiteral(node: ArgumentNode, context: GeneratorContext) {
+    const {push} = context
+
+    push(`(${node.value}).value ? (${node.value}).value : (${node.value})`)
+}
+
+/**
+ * 生成键值对表达式代码
+ * @param node 目标节点
+ * @param context 上下文对象
+ */
+function genKeyValuePair(node: PairNode, context: GeneratorContext) {
+    const {push} = context
+
+    genNode(node.first, context)
+    push(': ')
+    genNode(node.last, context)
+
+}
+
+/**
+ * 生成对象表达式代码
+ * @param node 目标节点
+ * @param context 上下文对象
+ */
+function genObjectExpression(node: ArgumentNode, context: GeneratorContext) {
     const {push, indent, deIndent} = context
     push('{')
     indent()
-    if (node.attrs && Object.keys(node.attrs).length > 0) {
-        push(`'attrs': {`)
-        indent()
-        Object.keys(node.attrs).forEach(attrKey => {
-            push(`'${attrKey}': '${node.attrs[attrKey]}'`)
-        })
-        deIndent()
-        push('},')
-    }
-    if (node.on && Object.keys(node.on).length > 0) {
-        push(`'on': {`)
-        indent()
-        Object.keys(node.on).forEach(attrKey => {
-            push(`'${attrKey}': ${node.on[attrKey]}`)
-        })
-        deIndent()
-        push('},')
-    }
-    if (node.directives && Object.keys(node.directives).length > 0) {
-        push(`'directives': [`)
-        indent()
-        for (let i = 0; i < node.directives.length; i++) {
-            push(`${JSON.stringify(node.directives[i])}`)
-            if (i < node.directives.length - 1) {
-                push(', ')
-            }
-        }
-        deIndent()
-        push(']')
-    }
+
+    genNodeList(node.elements, context)
+
     deIndent()
     push('}')
 }

@@ -1,10 +1,13 @@
 import {
     ArgumentNode,
-    CallExpressionNode, DirectiveDescriptor, DirectiveNode, ElementDescriptor, ExpressionNode,
-    IdentifierNode,
+    CallExpressionNode,
+    ExpressionNode,
     FunctionDeclNode,
+    IdentifierNode,
     JavascriptNode,
-    TemplateAST, ReturnStatementNode
+    PairNode,
+    ReturnStatementNode,
+    TemplateAST
 } from "types/compiler";
 
 /**
@@ -64,6 +67,19 @@ function createExpressionLiteral(value: string): ArgumentNode {
     } as ArgumentNode
 }
 
+/**
+ * 创建键值对型JsAST
+ * @param first 键node
+ * @param last 值node
+ */
+function createPairNode(first: JavascriptNode, last: JavascriptNode): PairNode {
+    return {
+        type: 'KeyValuePair',
+        first,
+        last
+    } as PairNode
+}
+
 
 /**
  * 转换文本节点
@@ -74,11 +90,9 @@ export function transformText(node: TemplateAST) {
         return
     }
 
-    const callExp = createCallExpression('_v', [
+    node.jsNode = createCallExpression('_v', [
         createStringLiteral(node.content as string)
     ])
-
-    node.jsNode = callExp
 }
 
 /**
@@ -90,13 +104,11 @@ export function transformComment(node: TemplateAST) {
         return
     }
 
-    const callExp = createCallExpression('_h', [
+    node.jsNode = createCallExpression('_h', [
         createStringLiteral('comment'),
-        {type: 'ElementDescriptor'},
+        {type: 'ObjectExpression', elements: []} as ArgumentNode, // 注释标签的prop应为空
         createStringLiteral(node.content as string)
     ])
-
-    node.jsNode = callExp
 }
 
 /**
@@ -109,11 +121,12 @@ export function transformInterpolation(node: TemplateAST) {
     }
 
     const callExp = createCallExpression('_s', [
-        createExpressionLiteral(node.content as string)
+        createExpressionLiteral((node.content as ExpressionNode).content)
     ])
 
-
-    node.jsNode = callExp
+    node.jsNode = createCallExpression('_v', [
+        callExp
+    ])
 }
 
 /**
@@ -134,31 +147,71 @@ export function transformElement(node: TemplateAST): () => void {
 
         // _h第二个参数为解析node的属性值
         if (node.props && node.props.length > 0) {
+            // 将props分类依次转换
+            const attrs: Array<PairNode> = []
+            const directives: Array<PairNode> = []
+            const events: Array<PairNode> = []
+
+            // 创建一个props描述对象
             const elementDescriptor = {
-                type: 'ElementDescriptor',
-                directives: [],
-                on: {},
-                attrs: {}
-            } as ElementDescriptor
+                type: 'ObjectExpression',
+                elements: [
+                    {
+                        type: 'KeyValuePair',
+                        first: createStringLiteral('directives'),
+                        last: {
+                            type: 'ObjectExpression',
+                            elements: directives
+                        } as ArgumentNode
+                    } as PairNode,
+                    {
+                        type: 'KeyValuePair',
+                        first: createStringLiteral('on'),
+                        last: {
+                            type: 'ObjectExpression',
+                            elements: events
+                        } as ArgumentNode
+                    } as PairNode,
+                    {
+                        type: 'KeyValuePair',
+                        first: createStringLiteral('attrs'),
+                        last: {
+                            type: 'ObjectExpression',
+                            elements: attrs
+                        } as ArgumentNode
+                    }
+                ]
+            } as ArgumentNode
 
             // 依次解析不同的prop并分类
             node.props.forEach(prop => {
                 if (prop.type === 'Directive') {
-                    elementDescriptor.directives.push({
-                        name: prop.name.slice(2, prop.name.length),
-                        rawName: prop.name,
-                        expression: prop.exp.content
-                    } as DirectiveDescriptor)
+                    directives.push(
+                        createPairNode(
+                            createStringLiteral(prop.name),
+                            createExpressionLiteral(prop.exp.content)
+                        )
+                    )
                 } else if (prop.type === 'Event') {
-                    elementDescriptor.on[prop.name] = prop.exp.content
+                    events.push(
+                        createPairNode(
+                            createStringLiteral(prop.name),
+                            createExpressionLiteral('(event) => {' + prop.exp.content + '}')
+                        )
+                    )
                 } else if (prop.type === 'Attribute') {
-                    elementDescriptor.attrs[prop.name] = prop.value
+                    attrs.push(
+                        createPairNode(
+                            createStringLiteral(prop.name),
+                            createStringLiteral(prop.value)
+                        )
+                    )
                 }
             })
 
             callExp.arguments.push(elementDescriptor)
         } else {
-            callExp.arguments.push({type: 'ElementDescriptor'})
+            callExp.arguments.push({type: 'ObjectExpression', elements: []} as ArgumentNode)
         }
 
         // _h第三个参数为全部子节点

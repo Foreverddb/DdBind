@@ -9,8 +9,12 @@
     (global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.DdBind = {}));
 })(this, (function (exports) { 'use strict';
 
+    var warn;
     var error;
     {
+        warn = function (msg, source) {
+            console.warn("[DdBind-warn]: at ".concat(source, " \n ").concat(msg));
+        };
         error = function (msg, source) {
             console.error("[DdBind-error]: at ".concat(source, " \n ").concat(msg));
         };
@@ -2675,6 +2679,18 @@
         };
     }
     /**
+     * 创建键值对型JsAST
+     * @param first 键node
+     * @param last 值node
+     */
+    function createPairNode(first, last) {
+        return {
+            type: 'KeyValuePair',
+            first: first,
+            last: last
+        };
+    }
+    /**
      * 转换文本节点
      * @param node 目标节点
      */
@@ -2682,10 +2698,9 @@
         if (node.type !== 'Text') {
             return;
         }
-        var callExp = createCallExpression('_v', [
+        node.jsNode = createCallExpression('_v', [
             createStringLiteral(node.content)
         ]);
-        node.jsNode = callExp;
     }
     /**
      * 转换注释节点
@@ -2695,12 +2710,11 @@
         if (node.type !== 'Comment') {
             return;
         }
-        var callExp = createCallExpression('_h', [
+        node.jsNode = createCallExpression('_h', [
             createStringLiteral('comment'),
-            { type: 'ElementDescriptor' },
+            { type: 'ObjectExpression', elements: [] },
             createStringLiteral(node.content)
         ]);
-        node.jsNode = callExp;
     }
     /**
      * 转换插值节点
@@ -2711,9 +2725,11 @@
             return;
         }
         var callExp = createCallExpression('_s', [
-            createExpressionLiteral(node.content)
+            createExpressionLiteral(node.content.content)
         ]);
-        node.jsNode = callExp;
+        node.jsNode = createCallExpression('_v', [
+            callExp
+        ]);
     }
     /**
      * 转换标签节点
@@ -2731,32 +2747,56 @@
             ]);
             // _h第二个参数为解析node的属性值
             if (node.props && node.props.length > 0) {
-                var elementDescriptor_1 = {
-                    type: 'ElementDescriptor',
-                    directives: [],
-                    on: {},
-                    attrs: {}
+                // 将props分类依次转换
+                var attrs_1 = [];
+                var directives_1 = [];
+                var events_1 = [];
+                // 创建一个props描述对象
+                var elementDescriptor = {
+                    type: 'ObjectExpression',
+                    elements: [
+                        {
+                            type: 'KeyValuePair',
+                            first: createStringLiteral('directives'),
+                            last: {
+                                type: 'ObjectExpression',
+                                elements: directives_1
+                            }
+                        },
+                        {
+                            type: 'KeyValuePair',
+                            first: createStringLiteral('on'),
+                            last: {
+                                type: 'ObjectExpression',
+                                elements: events_1
+                            }
+                        },
+                        {
+                            type: 'KeyValuePair',
+                            first: createStringLiteral('attrs'),
+                            last: {
+                                type: 'ObjectExpression',
+                                elements: attrs_1
+                            }
+                        }
+                    ]
                 };
                 // 依次解析不同的prop并分类
                 node.props.forEach(function (prop) {
                     if (prop.type === 'Directive') {
-                        elementDescriptor_1.directives.push({
-                            name: prop.name.slice(2, prop.name.length),
-                            rawName: prop.name,
-                            expression: prop.exp.content
-                        });
+                        directives_1.push(createPairNode(createStringLiteral(prop.name), createExpressionLiteral(prop.exp.content)));
                     }
                     else if (prop.type === 'Event') {
-                        elementDescriptor_1.on[prop.name] = prop.exp.content;
+                        events_1.push(createPairNode(createStringLiteral(prop.name), createExpressionLiteral('(event) => {' + prop.exp.content + '}')));
                     }
                     else if (prop.type === 'Attribute') {
-                        elementDescriptor_1.attrs[prop.name] = prop.value;
+                        attrs_1.push(createPairNode(createStringLiteral(prop.name), createStringLiteral(prop.value)));
                     }
                 });
-                callExp.arguments.push(elementDescriptor_1);
+                callExp.arguments.push(elementDescriptor);
             }
             else {
-                callExp.arguments.push({ type: 'ElementDescriptor' });
+                callExp.arguments.push({ type: 'ObjectExpression', elements: [] });
             }
             // _h第三个参数为全部子节点
             node.children.length === 1
@@ -2804,6 +2844,11 @@
         return templateAST.jsNode;
     }
 
+    /**
+     * 对任意JsAST节点进行生成代码操作
+     * @param node
+     * @param context
+     */
     function genNode(node, context) {
         switch (node.type) {
             case "FunctionDeclaration":
@@ -2821,8 +2866,14 @@
             case "ArrayExpression":
                 genArrayExpression(node, context);
                 break;
-            case "ElementDescriptor":
-                genElementDescriptor(node, context);
+            case "ExpressionLiteral":
+                genExpressionLiteral(node, context);
+                break;
+            case "KeyValuePair":
+                genKeyValuePair(node, context);
+                break;
+            case "ObjectExpression":
+                genObjectExpression(node, context);
                 break;
         }
     }
@@ -2843,7 +2894,7 @@
         push("}");
     }
     /**
-     * 生成返回型代码
+     * 生成返回值代码
      * @param node 目标节点
      * @param context 上下文对象
      */
@@ -2852,6 +2903,11 @@
         push("return ");
         genNode(node.return, context);
     }
+    /**
+     * 生成函数调用表达式代码
+     * @param node 目标节点
+     * @param context 上下文对象
+     */
     function genCallExpression(node, context) {
         var push = context.push;
         var callee = node.callee, args = node.arguments;
@@ -2865,7 +2921,7 @@
      * @param context 上下文对象
      */
     function genNodeList(nodes, context) {
-        var push = context.push;
+        var push = context.push; context.indent; context.deIndent;
         for (var i = 0; i < nodes.length; i++) {
             var node = nodes[i];
             genNode(node, context);
@@ -2881,6 +2937,8 @@
      */
     function genStringLiteral(node, context) {
         var push = context.push;
+        // 去除换行符以免影响代码运行
+        node.value = node.value.replaceAll(/\n/g, ' ');
         // 对于字符串字面量，只需要追加与 node.value 对应的字符串即可
         push("'".concat(node.value, "'"));
     }
@@ -2890,45 +2948,43 @@
      * @param context 上下文对象
      */
     function genArrayExpression(node, context) {
-        var push = context.push;
+        var push = context.push, indent = context.indent, deIndent = context.deIndent;
         push('[');
+        indent();
         genNodeList(node.elements, context);
+        deIndent();
         push(']');
     }
-    function genElementDescriptor(node, context) {
+    /**
+     * 生成js表达式代码
+     * @param node 目标节点
+     * @param context 上下文对象
+     */
+    function genExpressionLiteral(node, context) {
+        var push = context.push;
+        push("(".concat(node.value, ").value ? (").concat(node.value, ").value : (").concat(node.value, ")"));
+    }
+    /**
+     * 生成键值对表达式代码
+     * @param node 目标节点
+     * @param context 上下文对象
+     */
+    function genKeyValuePair(node, context) {
+        var push = context.push;
+        genNode(node.first, context);
+        push(': ');
+        genNode(node.last, context);
+    }
+    /**
+     * 生成对象表达式代码
+     * @param node 目标节点
+     * @param context 上下文对象
+     */
+    function genObjectExpression(node, context) {
         var push = context.push, indent = context.indent, deIndent = context.deIndent;
         push('{');
         indent();
-        if (node.attrs && Object.keys(node.attrs).length > 0) {
-            push("'attrs': {");
-            indent();
-            Object.keys(node.attrs).forEach(function (attrKey) {
-                push("'".concat(attrKey, "': '").concat(node.attrs[attrKey], "'"));
-            });
-            deIndent();
-            push('},');
-        }
-        if (node.on && Object.keys(node.on).length > 0) {
-            push("'on': {");
-            indent();
-            Object.keys(node.on).forEach(function (attrKey) {
-                push("'".concat(attrKey, "': ").concat(node.on[attrKey]));
-            });
-            deIndent();
-            push('},');
-        }
-        if (node.directives && Object.keys(node.directives).length > 0) {
-            push("'directives': [");
-            indent();
-            for (var i = 0; i < node.directives.length; i++) {
-                push("".concat(JSON.stringify(node.directives[i])));
-                if (i < node.directives.length - 1) {
-                    push(', ');
-                }
-            }
-            deIndent();
-            push(']');
-        }
+        genNodeList(node.elements, context);
         deIndent();
         push('}');
     }
@@ -2945,42 +3001,514 @@
                 context.code += code;
             },
             newLine: function () {
-                context.code += '\n' + '  '.repeat(context.currentIndent);
+                // 生产环境下无需进行格式化与美化代码操作
+                {
+                    context.code += '\n' + '  '.repeat(context.currentIndent);
+                }
             },
             indent: function () {
-                context.currentIndent++;
-                context.newLine();
+                {
+                    context.currentIndent++;
+                    context.newLine();
+                }
             },
             deIndent: function () {
-                context.currentIndent--;
-                context.newLine();
+                {
+                    context.currentIndent--;
+                    context.newLine();
+                }
             }
         };
         genNode(jsAST, context);
         return context.code;
     }
 
+    var TextVnodeSymbol = Symbol('TextVnodeSymbol');
+    var CommentVnodeSymbol = Symbol('CommentVnodeSymbol');
+
+    var VnodeUtil = /** @class */ (function () {
+        function VnodeUtil() {
+        }
+        VnodeUtil.builder = function () {
+            return new VnodeBuilder();
+        };
+        return VnodeUtil;
+    }());
+    var VnodeImpl = /** @class */ (function () {
+        function VnodeImpl() {
+        }
+        return VnodeImpl;
+    }());
+    var VnodeBuilder = /** @class */ (function () {
+        function VnodeBuilder() {
+        }
+        VnodeBuilder.prototype.setType = function (type) {
+            this.type = type;
+            return this;
+        };
+        VnodeBuilder.prototype.setChildren = function (children) {
+            this.children = children;
+            return this;
+        };
+        VnodeBuilder.prototype.setProps = function (props) {
+            this.props = props;
+            return this;
+        };
+        VnodeBuilder.prototype.setEl = function (el) {
+            this.el = el;
+            return this;
+        };
+        VnodeBuilder.prototype.build = function () {
+            var _this = this;
+            var vnode = new VnodeImpl();
+            Object.keys(this).forEach(function (key) {
+                vnode[key] = _this[key];
+            });
+            return vnode;
+        };
+        return VnodeBuilder;
+    }());
+
+    function createVnode(type, props, children) {
+        if (type === 'comment') {
+            return VnodeUtil.builder().setType(CommentVnodeSymbol).setChildren(children).build();
+        }
+        else {
+            var builder = VnodeUtil.builder().setType(type).setChildren(children);
+            var propsObject = {};
+            if (props.attrs) {
+                Object.assign(propsObject, props.attrs);
+            }
+            if (props.on) {
+                for (var eventName in props.on) {
+                    var propKey = 'on' + eventName[0].toUpperCase() + eventName.slice(1, eventName.length); // 构造为以on开头的prop名
+                    propsObject[propKey] = props.on[eventName];
+                }
+            }
+            if (props.directives) {
+                for (var directiveName in props.directives) {
+                }
+            }
+            builder.setProps(propsObject);
+            return builder.build();
+        }
+    }
+    function createTextVnode(value) {
+        return VnodeUtil.builder().setType(TextVnodeSymbol).setChildren(value).build();
+    }
+    function stringVal(value) {
+        return value === null
+            ? ''
+            : typeof value === 'object'
+                ? value.toString()
+                : String(value);
+    }
+
     var Compiler = /** @class */ (function () {
         function Compiler(el, vm) {
             this.$el = el;
             this.$vm = vm;
+            // 初始化绑定渲染函数
+            this.$vm._h = createVnode;
+            this.$vm._v = createTextVnode;
+            this.$vm._s = stringVal;
             if (this.$el) {
                 this.compileElement(this.$el);
             }
         }
+        /**
+         * 编译目标元素
+         * @param el 目标HTML
+         * @private
+         */
         Compiler.prototype.compileElement = function (el) {
             var source = el.outerHTML;
-            var templateAST = parse(source);
-            console.log(templateAST);
-            var jsAST = transform(templateAST);
-            console.log(jsAST);
-            var code = generate(jsAST);
-            console.log(code);
-        };
-        Compiler.prototype.compile = function () {
+            var templateAST = parse(source); // 编译HTML模版为模版AST
+            var jsAST = transform(templateAST); // 将模版AST转换为jsAST
+            var code = generate(jsAST); // 根据jsAST生成渲染函数代码
+            this.$vm.$render = createFunction(code, this.$vm);
         };
         return Compiler;
     }());
+    function createFunction(code, vm) {
+        try {
+            return new Function(code).bind(vm);
+        }
+        catch (e) {
+            error('create function error.', e);
+        }
+    }
+
+    var activeEffect; // 当前激活的副作用函数
+    var effectBucket = new WeakMap(); // 副作用函数桶
+    var effectStack = []; // 副作用函数运行栈，避免嵌套副作用函数占用activeEffect的问题
+    var iterateBucket = new WeakMap(); // 代理的迭代对象的key值桶
+    /**
+     * 清除原有依赖关系
+     * @param effectFn 副作用函数
+     */
+    function cleanup(effectFn) {
+        effectFn.deps.forEach(function (value) {
+            value.delete(effectFn);
+        });
+        effectFn.deps.length = 0;
+    }
+    /**
+     * 注册副作用函数
+     * @param func 副作用函数
+     * @param options 副作用函数的执行选项
+     */
+    function effect(func, options) {
+        if (options === void 0) { options = {}; }
+        var effectFn = function () {
+            cleanup(effectFn);
+            activeEffect = effectFn;
+            effectStack.push(effectFn);
+            var res = func();
+            effectStack.pop();
+            activeEffect = effectStack[effectStack.length - 1];
+            return res;
+        };
+        effectFn.deps = [];
+        effectFn.options = options;
+        if (!options.isLazy) {
+            effectFn();
+        }
+        return effectFn;
+    }
+    /**
+     * 追踪并绑定副作用函数
+     * @param target 绑定对象
+     * @param key 绑定key
+     */
+    function track(target, key) {
+        if (!activeEffect)
+            return;
+        var depsMap = effectBucket.get(target);
+        if (!depsMap) {
+            effectBucket.set(target, (depsMap = new Map()));
+        }
+        if (typeof key === 'symbol') {
+            iterateBucket.set(target, key);
+        }
+        var effects = depsMap.get(key);
+        if (!effects) {
+            depsMap.set(key, (effects = new Set()));
+        }
+        effects.add(activeEffect);
+        activeEffect.deps.push(effects);
+    }
+    /**
+     * 触发执行副作用函数
+     * @param target 绑定对象
+     * @param key 绑定key
+     * @param type 对代理对象的操作类型(SET/GET/DELETE等)
+     */
+    function trigger(target, key, type) {
+        var depsMap = effectBucket.get(target);
+        if (!depsMap)
+            return;
+        // if (type === 'ADD') {
+        //     track(target, key)
+        // }
+        // depsMap = effectBucket.get(target)
+        var effects = depsMap.get(key);
+        var effectsToRuns = new Set();
+        effects && effects.forEach(function (fn) {
+            if (fn !== activeEffect) {
+                effectsToRuns.add(fn);
+            }
+        });
+        if (type === 'ADD' && Array.isArray(target)) {
+            var lengthEffects = depsMap.get('length');
+            lengthEffects && lengthEffects.forEach(function (fn) {
+                if (fn != activeEffect) {
+                    effectsToRuns.add(fn);
+                }
+            });
+        }
+        // 当增加或删除属性时触发迭代时注册的副作用函数
+        if (type === 'ADD' || type === 'DELETE') {
+            var iterateKey = iterateBucket.get(target);
+            iterateKey && depsMap.get(iterateKey).forEach(function (fn) {
+                if (fn !== activeEffect) {
+                    effectsToRuns.add(fn);
+                }
+            });
+        }
+        effectsToRuns.forEach(function (fn) {
+            if (fn.options && fn.options.scheduler) {
+                fn.options.scheduler(fn);
+            }
+            else {
+                fn();
+            }
+        });
+    }
+
+    /**
+     * 判断某个属性是否需要通过setAttribute方式设置
+     * @param el 目标dom
+     * @param key 目标属性名
+     * @param value 属性值
+     */
+    function shouldSetAsDomProps(el, key, value) {
+        if (key === 'form' && el.tagName === 'INPUT')
+            return false;
+        return key in el;
+    }
+    /**
+     * 通过vnode为真实dom设置props
+     * @param el 需要设置的dom
+     * @param key 要设置的属性名
+     * @param oldValue 旧属性值
+     * @param newValue 新属性值
+     */
+    function patchProps(el, key, oldValue, newValue) {
+        // 以on开头的属性视为事件
+        if (/^on/.test(key)) {
+            var eventName = key.slice(2).toLowerCase();
+            var invokers = el._invokers || (el._invokers = {});
+            var invoker_1 = invokers[eventName]; // 事件处理函数装饰器
+            if (newValue) {
+                if (!invoker_1) {
+                    // 原来无事件处理函数则注册新的
+                    invoker_1 = el._invokers[eventName] = function (event) {
+                        // 若事件触发事件早于绑定时间则不处理此事件
+                        if (event.timeStamp < invoker_1.attachTime)
+                            return;
+                        // 处理存在多个事件处理函数的情况
+                        if (Array.isArray(invoker_1.value)) {
+                            invoker_1.value.forEach(function (fn) { return fn(event); });
+                        }
+                        else {
+                            invoker_1.value(event);
+                        }
+                    };
+                    invoker_1.value = newValue;
+                    invoker_1.attachTime = performance.now(); // 记录此事件的绑定时间
+                    el.addEventListener(eventName, invoker_1);
+                }
+                else {
+                    // 若有事件处理函数则可直接更新
+                    invoker_1.value = newValue;
+                }
+            }
+            else if (invoker_1) {
+                // 若新值无事件处理函数则清除原事件
+                el.removeEventListener(eventName, invoker_1);
+            }
+        }
+        else if (key === 'class') {
+            // 针对class属性进行处理
+            el.className = newValue || '';
+        }
+        else if (key === 'style') {
+            // 针对style属性进行处理
+            if (Array.isArray(newValue)) {
+                for (var style in newValue) {
+                    Object.assign(el.style, newValue[style]);
+                }
+            }
+            else {
+                Object.assign(el.style, newValue);
+            }
+        }
+        else if (shouldSetAsDomProps(el, key)) {
+            var type = typeof el[key];
+            if (type === 'boolean' && newValue === '') { // 针对HTML attr中boolean型的属性进行处理
+                el[key] = true;
+            }
+            else {
+                el[key] = newValue;
+            }
+        }
+        else {
+            // 不存在于DOM properties的属于用此方法设置
+            el.setAttribute(key, newValue);
+        }
+    }
+    /**
+     * 将vnode挂载到真实dom
+     * @param vnode 需要挂载的vnode
+     * @param container 挂载容器
+     */
+    function mountElement(vnode, container) {
+        var el = vnode.el = document.createElement(vnode.type);
+        // 将每个child挂载到真实dom
+        if (typeof vnode.children === 'string') {
+            el.textContent = vnode.children;
+        }
+        else if (Array.isArray(vnode.children)) {
+            vnode.children.forEach(function (child) {
+                patch(null, child, el);
+            });
+        }
+        // 为dom挂载attr
+        if (vnode.props) {
+            for (var key in vnode.props) {
+                patchProps(el, key, null, vnode.props[key]);
+            }
+        }
+        container.insertBefore(el, null);
+    }
+    /**
+     * 卸载vnode
+     * @param vnode 需要卸载的vnode
+     */
+    function unmountElement(vnode) {
+        var parent = vnode.el.parentNode;
+        if (parent) {
+            parent.removeChild(vnode.el);
+        }
+    }
+    /**
+     * 更新某节点的子节点
+     * @param oldVNode 旧vnode
+     * @param newVNode 新vnode
+     * @param container
+     */
+    function updateElementChild(oldVNode, newVNode, container) {
+        if (typeof newVNode.children === 'string') { // 新vnode的children为字符串的情况
+            if (Array.isArray(oldVNode.children)) {
+                oldVNode.children.forEach(function (child) {
+                    unmountElement(child);
+                });
+            }
+            container.textContent = newVNode.children;
+        }
+        else if (Array.isArray(newVNode.children)) { // 新vnode的children类型为一组组件的情况
+            if (Array.isArray(oldVNode.children)) {
+                // 卸载后更新全部子节点
+                oldVNode.children.forEach(function (child) {
+                    unmountElement(child);
+                });
+                newVNode.children.forEach(function (child) {
+                    patch(null, child, container);
+                });
+            }
+            else {
+                container.textContent = '';
+                newVNode.children.forEach(function (child) {
+                    patch(null, child, container);
+                });
+            }
+        }
+        else { // 若新子节点不存在则挨个卸载
+            if (Array.isArray(oldVNode.children)) {
+                oldVNode.children.forEach(function (child) {
+                    unmountElement(child);
+                });
+            }
+            else if (typeof oldVNode.children === 'string') {
+                container.textContent = '';
+            }
+        }
+    }
+    /**
+     * 更新修补vnode并重新挂载
+     * @param oldVNode
+     * @param newVNode
+     */
+    function updateElement(oldVNode, newVNode) {
+        var el = newVNode.el = oldVNode.el;
+        var oldProps = oldVNode.props;
+        var newProps = newVNode.props;
+        // 更新props
+        for (var key in newProps) {
+            if (newProps[key] !== oldProps[key]) {
+                patchProps(el, key, oldProps[key], newProps[key]);
+            }
+        }
+        // 清除新vnode中不存在的老prop
+        for (var key in oldProps) {
+            if (!(key in newProps)) {
+                patchProps(el, key, oldProps[key], null);
+            }
+        }
+        // 更新子节点
+        updateElementChild(oldVNode, newVNode, el);
+    }
+    /**
+     * 完成vnode的挂载更新
+     * @param oldVNode 原vnode
+     * @param newVNode 需要挂载更新的vnode
+     * @param container 渲染容器
+     */
+    function patch(oldVNode, newVNode, container) {
+        // 若新旧vnode类型不同，则卸载并重新挂载
+        if (oldVNode && oldVNode.type !== newVNode.type) {
+            unmountElement(oldVNode);
+            oldVNode = null;
+        }
+        var vnodeType = typeof newVNode.type;
+        if (vnodeType === 'string') { // vnode为普通标签
+            if (!oldVNode) {
+                mountElement(newVNode, container); // 挂载vnode
+            }
+            else {
+                updateElement(oldVNode, newVNode); // 更新vnode
+            }
+        }
+        else if (vnodeType === 'object') ;
+        else if (vnodeType === 'symbol') { // 标准普通标签以外的标签
+            if (newVNode.type === TextVnodeSymbol) { // 文本节点
+                if (typeof newVNode.children !== 'string') {
+                    error("text node requires children being type of \"string\", received type ".concat(typeof newVNode.children), newVNode);
+                }
+                if (!oldVNode) {
+                    var el = newVNode.el = document.createTextNode(newVNode.children);
+                    container.insertBefore(el, null);
+                }
+                else { // 若原节点存在则更新
+                    var el = newVNode.el = oldVNode.el;
+                    if (newVNode.children !== oldVNode.children) {
+                        el.nodeValue = newVNode.children;
+                    }
+                }
+            }
+            else if (newVNode.type === CommentVnodeSymbol) {
+                if (typeof newVNode.children !== 'string') {
+                    error("comment node requires children being type of \"string\", received type ".concat(typeof newVNode.children), newVNode);
+                }
+                if (!oldVNode) {
+                    var el = newVNode.el = document.createComment(newVNode.children);
+                    container.insertBefore(el, null);
+                }
+                else { // 若原节点存在则更新
+                    var el = newVNode.el = oldVNode.el;
+                    if (newVNode.children !== oldVNode.children) {
+                        el.nodeValue = newVNode.children;
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * 创建一个渲染器
+     */
+    function createRenderer() {
+        /**
+         * 渲染vnode到真实dom
+         * @param vnode 虚拟dom
+         * @param container 渲染容器dom
+         */
+        function render(vnode, container) {
+            if (vnode) {
+                patch(container._vnode, vnode, container); // 挂载或更新vnode
+            }
+            else {
+                if (container._vnode) {
+                    unmountElement(container._vnode); // 卸载原有vnode
+                }
+            }
+            container._vnode = vnode;
+        }
+        return {
+            render: render
+        };
+    }
 
     var DdBind = /** @class */ (function () {
         function DdBind(options) {
@@ -2991,6 +3519,7 @@
          * @param el dom或selector
          */
         DdBind.prototype.mount = function (el) {
+            var _this = this;
             var container;
             if (typeof el === 'string') {
                 container = document.querySelector(el);
@@ -3000,15 +3529,244 @@
             }
             this.$el = container;
             this.$compile = new Compiler(container, this); // 创建对应编译器
+            this.$renderer = createRenderer(); // 创建渲染器
+            Object.assign(this, this.$options.setup()); // 将setup返回值绑定到vm对象上
+            // 注册响应式数据，当数据改变时重新渲染
+            effect(function () {
+                _this.$vnode = _this.$render(); // 挂载并渲染vnode
+                _this.$renderer.render(_this.$vnode, _this.$el);
+            });
         };
         return DdBind;
     }());
+
+    var reactiveMap = new Map();
+    /**
+     * 为所有代理对象与数组绑定新的toString()
+     */
+    Object.prototype.toString = function () {
+        return JSON.stringify(this); // 输出对象值而非[Object object]
+    };
+    Array.prototype.toString = function () {
+        return JSON.stringify(this);
+    };
+    /**
+     * 获取一个唯一的代理handler
+     */
+    function handler() {
+        return {
+            set: function (target, p, newValue, receiver) {
+                var oldValue = target[p];
+                // 对set对类型进行针对常规对象和数组的优化
+                var type = Array.isArray(target)
+                    ? (Number(p) < target.length ? 'SET' : 'ADD')
+                    : (Object.prototype.hasOwnProperty.call(target, p) ? 'SET' : 'ADD');
+                var res = Reflect.set(target, p, newValue, receiver);
+                // 只有当值发生变化时才更新
+                if (oldValue !== newValue && (oldValue === oldValue || newValue === newValue)) {
+                    trigger(target, p, type);
+                }
+                return res;
+            },
+            get: function (target, p, receiver) {
+                var res = Reflect.get(target, p, receiver);
+                track(target, p);
+                if (typeof res === 'object' && res !== null) {
+                    // 为每个对象绑定追踪
+                    for (var resKey in res) {
+                        track(res, resKey);
+                    }
+                    return reactive(res);
+                }
+                return res;
+            },
+            has: function (target, p) {
+                track(target, p);
+                return Reflect.has(target, p);
+            },
+            ownKeys: function (target) {
+                track(target, Array.isArray(target) ? 'length' // 若遍历对象为数组则可直接代理length属性
+                    : Symbol('iterateKey')); // 设置一个与target关联的key
+                return Reflect.ownKeys(target);
+            },
+            deleteProperty: function (target, p) {
+                var hasKey = Object.prototype.hasOwnProperty.call(target, p);
+                var res = Reflect.deleteProperty(target, p);
+                if (res && hasKey) {
+                    trigger(target, p, 'DELETE');
+                }
+                return res;
+            },
+        };
+    }
+    /**
+     * 创建一个代理非原始值的响应式对象
+     * @param value 响应式对象值
+     */
+    function reactive(value) {
+        if ((typeof value !== "object" || value === null)) {
+            error('reactive() requires an object parameter', value);
+        }
+        // 检查是否已创建了对应的代理对象，有则直接返回
+        var existProxy = reactiveMap.get(value);
+        if (existProxy)
+            return existProxy;
+        var proxy = new Proxy(value, handler());
+        reactiveMap.set(value, proxy);
+        return proxy;
+    }
+
+    /**
+     * 构建响应式对象时用其作为装饰器
+     * 实现嵌套的响应式对象
+     */
+    var DecoratedValue = /** @class */ (function () {
+        function DecoratedValue(value) {
+            this.value = value;
+        }
+        return DecoratedValue;
+    }());
+    /**
+     * 响应式数据代理类
+     */
+    var Ref = /** @class */ (function () {
+        function Ref(value) {
+            this._value = reactive(new DecoratedValue(value));
+        }
+        Object.defineProperty(Ref.prototype, "value", {
+            get: function () {
+                return this._value.value;
+            },
+            set: function (newValue) {
+                this._value.value = newValue;
+            },
+            enumerable: false,
+            configurable: true
+        });
+        return Ref;
+    }());
+    /**
+     * 创建一个可代理原始值的响应式对象
+     * @param value 响应式值,
+     */
+    function ref(value) {
+        return new Ref(value);
+    }
+
+    /******************************************************************************
+    Copyright (c) Microsoft Corporation.
+
+    Permission to use, copy, modify, and/or distribute this software for any
+    purpose with or without fee is hereby granted.
+
+    THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+    REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+    AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+    INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+    LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+    OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+    PERFORMANCE OF THIS SOFTWARE.
+    ***************************************************************************** */
+
+    var __assign = function() {
+        __assign = Object.assign || function __assign(t) {
+            for (var s, i = 1, n = arguments.length; i < n; i++) {
+                s = arguments[i];
+                for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p)) t[p] = s[p];
+            }
+            return t;
+        };
+        return __assign.apply(this, arguments);
+    };
+
+    /**
+     * 遍历对象属性使其绑定响应
+     */
+    function traverseRef(value, traversed) {
+        if (traversed === void 0) { traversed = new Set(); }
+        if (!value || typeof value !== 'object' || traversed.has(value))
+            return;
+        traversed.add(value);
+        for (var valueKey in value) {
+            traverseRef(value[valueKey], traversed);
+        }
+        return value;
+    }
+    /**
+     * 注册一个侦听器
+     * @param target 侦听对象
+     * @param callback 对象值发生变化时执行的回调
+     */
+    function watch(target, callback) {
+        if (typeof target !== "object") {
+            warn("watch() requires a object as watching target, received type is ".concat(typeof target), target);
+        }
+        var getter; // 需要注册的getter函数
+        // 若为用户定义的getter则直接使用
+        if (typeof target === 'function') {
+            getter = target;
+        }
+        else if (target instanceof Ref) {
+            getter = function () { return traverseRef(target.value); };
+        }
+        else {
+            getter = function () { return traverseRef(target); };
+        }
+        var newValue, oldValue;
+        var onExpiredHandler;
+        var onExpired = function (fn) {
+            onExpiredHandler = fn;
+        };
+        var effectFn = effect(getter, {
+            isLazy: true,
+            scheduler: function () {
+                newValue = __assign({}, effectFn()); // 防止与oldValue引用同一对象
+                if (onExpiredHandler)
+                    onExpiredHandler(); // 若注册了过期函数则在回调前执行
+                callback(newValue, oldValue, onExpired);
+                oldValue = newValue;
+            }
+        });
+        oldValue = __assign({}, effectFn()); // 防止与newValue引用同一对象
+    }
+
+    /**
+     * 创建一个计算属性
+     * @param getter 计算属性方法
+     */
+    function computed(getter) {
+        var buffer; // 缓存上一次计算值
+        var dirty = true; // 脏值flag，脏值检测依赖的是响应式数据Proxy
+        var effectFn = effect(getter, {
+            isLazy: true,
+            // 当依赖的响应式数据发生变化时刷新缓存
+            scheduler: function () {
+                dirty = true;
+                trigger(obj, 'value'); // 因为执行副作用函数模式为懒加载，当依赖的响应式数据发送变化时需手动触发其副作用函数
+            }
+        });
+        var obj = {
+            get value() {
+                if (dirty) {
+                    buffer = effectFn();
+                    dirty = false;
+                }
+                track(obj, 'value'); // 添加依赖的响应式对象到计算属性的依赖
+                return buffer;
+            }
+        };
+        return obj;
+    }
 
     function createApp(options) {
         return new DdBind(options);
     }
 
     exports.DdBind = DdBind;
+    exports.computed = computed;
     exports.createApp = createApp;
+    exports.reactive = reactive;
+    exports.ref = ref;
+    exports.watch = watch;
 
 }));

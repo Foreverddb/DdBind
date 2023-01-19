@@ -13,15 +13,22 @@ export function generate(jsAST: JavascriptNode): string {
             context.code += code
         },
         newLine() {
-            context.code += '\n' + '  '.repeat(context.currentIndent)
+            // 生产环境下无需进行格式化与美化代码操作
+            if (__DEV__) {
+                context.code += '\n' + '  '.repeat(context.currentIndent)
+            }
         },
         indent() {
-            context.currentIndent ++
-            context.newLine()
+            if (__DEV__) {
+                context.currentIndent ++
+                context.newLine()
+            }
         },
         deIndent() {
-            context.currentIndent --
-            context.newLine()
+            if (__DEV__) {
+                context.currentIndent --
+                context.newLine()
+            }
         }
     } as GeneratorContext
 

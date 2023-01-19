@@ -8,18 +8,32 @@
 <body>
 <div id="app">
     <!-- 测试一下注释 -->
-    <h1 @click="test()">
+    <h1>
         testtt &lt;&#60;
-        <div d-on:click="test()">ttttrt</div>
+        <div>ttttrt</div>
     </h1>
-    <div d-model="ddd">ddd</div>
-    <div id="fuck">ss{{ foo }}sb</div>
+    <div >ddassad</div>
+    <!-- test -->
+    <div @click="change()" id="fuck">ss{{ foo.value + com.value }}sb</div>
 </div>
 <script>
+
     let app = DdBind.createApp({
         setup() {
-            console.log('ssss')
-            return {}
+            const foo = DdBind.ref('[dss]')
+            const bar = DdBind.ref('[shit ss]')
+            const com = DdBind.computed(() => {
+                return foo.value.repeat(3)
+            })
+            const change = () => {
+                foo.value = 'fnian'
+            }
+            return {
+                com,
+                foo,
+                change,
+                bar
+            }
         }
     })
     app.mount('#app')

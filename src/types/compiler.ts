@@ -101,8 +101,8 @@ export interface IdentifierNode extends JavascriptNode {
 }
 
 export interface ArgumentNode extends JavascriptNode {
-    type: 'StringLiteral' | 'ArrayExpression' | 'ExpressionLiteral',
-    value?: string,
+    type: 'StringLiteral' | 'ArrayExpression' | 'ExpressionLiteral' | 'ObjectExpression',
+    value?: string | ExpressionNode,
     elements?: Array<JavascriptNode>
 }
 
@@ -112,25 +112,16 @@ export interface CallExpressionNode extends JavascriptNode {
     arguments: Array<JavascriptNode>
 }
 
-export interface ElementDescriptor extends JavascriptNode {
-    type: 'ElementDescriptor',
-    directives: Array<DirectiveDescriptor>,
-    on: {
-        [propName: string]: any
-    },
-    attrs: {
-        [propName: string]: string
-    }
-}
-
-export interface DirectiveDescriptor {
-    name: string,
-    rawName: string,
-    expression: string
+export interface PairNode extends JavascriptNode{
+    type: 'KeyValuePair',
+    first: JavascriptNode,
+    last: JavascriptNode
 }
 
 export interface JavascriptNode {
-    type: 'FunctionDeclaration' | 'CallExpression' | 'StringLiteral' | 'ArrayExpression' | 'ExpressionLiteral' | 'Identifier' | 'ElementDescriptor' | 'ReturnStatement'
+    type: 'FunctionDeclaration' | 'CallExpression' | 'StringLiteral' | 'ArrayExpression'
+        | 'ExpressionLiteral' | 'Identifier' | 'ElementDescriptor' | 'ReturnStatement'
+        | 'KeyValuePair' | 'ObjectExpression'
 }
 
 export interface TransformerContext {
@@ -167,4 +158,3 @@ export interface GeneratorContext {
     // 取消缩进并换行
     deIndent: () => void
 }
-

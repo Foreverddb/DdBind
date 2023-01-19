@@ -1,6 +1,8 @@
 import {Container, Renderer, VNode} from "types/renderer";
 import {patch, unmountElement} from "renderer/element";
 
+export {createVnode, createTextVnode, stringVal} from './utils'
+
 /**
  * 创建一个渲染器
  */
