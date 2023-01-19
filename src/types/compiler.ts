@@ -84,49 +84,35 @@ export interface ExpressionNode {
 
 
 // js抽象语法树
-export interface JavascriptAST extends JavascriptNode{
+export interface FunctionDeclNode extends JavascriptNode {
     type: 'FunctionDeclaration',
     id: IdentifierNode,
-    body: Array<{
-        type: 'ReturnStatement',
-        return: CallExpressionNode
-    }>
+    body: Array<JavascriptNode>
 }
-export interface IdentifierNode extends JavascriptNode{
+
+export interface ReturnStatementNode extends JavascriptNode {
+    type: 'ReturnStatement',
+    return: CallExpressionNode
+}
+
+export interface IdentifierNode extends JavascriptNode {
     type: 'Identifier',
     name: string
 }
 
-export interface ArgumentNode extends JavascriptNode{
-    type: 'StringLiteral' | 'ArrayExpression' | 'CommentLiteral' | 'ExpressionLiteral',
+export interface ArgumentNode extends JavascriptNode {
+    type: 'StringLiteral' | 'ArrayExpression' | 'ExpressionLiteral',
     value?: string,
     elements?: Array<JavascriptNode>
 }
 
-export interface CallExpressionNode extends JavascriptNode{
+export interface CallExpressionNode extends JavascriptNode {
     type: 'CallExpression',
     callee: IdentifierNode,
     arguments: Array<JavascriptNode>
 }
 
-export interface JavascriptNode {
-    type: string
-}
-
-export interface TransformerContext {
-    // 当前正在转换的节点
-    currentNode: TemplateAST,
-
-    // 储存当前子节点在父节点中的位置索引
-    childIndex: number,
-
-    // currentNode的父节点
-    parent: TemplateAST,
-
-    nodeTransforms: Array<(templateAST: TemplateAST, context?: TransformerContext) => Function>
-}
-
-export interface ElementDescriptor extends JavascriptNode{
+export interface ElementDescriptor extends JavascriptNode {
     type: 'ElementDescriptor',
     directives: Array<DirectiveDescriptor>,
     on: {
@@ -143,10 +129,42 @@ export interface DirectiveDescriptor {
     expression: string
 }
 
+export interface JavascriptNode {
+    type: 'FunctionDeclaration' | 'CallExpression' | 'StringLiteral' | 'ArrayExpression' | 'ExpressionLiteral' | 'Identifier' | 'ElementDescriptor' | 'ReturnStatement'
+}
+
+export interface TransformerContext {
+    // 当前正在转换的节点
+    currentNode: TemplateAST,
+
+    // 储存当前子节点在父节点中的位置索引
+    childIndex: number,
+
+    // currentNode的父节点
+    parent: TemplateAST,
+
+    nodeTransforms: Array<(templateAST: TemplateAST, context?: TransformerContext) => Function>
+}
+
 
 // code生成器上下文
 export interface GeneratorContext {
+    // 生成的代码
     code: string,
-    push: (code: string) => void
+
+    // 拼接代码
+    push: (code: string) => void,
+
+    // 换行
+    newLine: () => void,
+
+    // 当前缩进级别
+    currentIndent: number,
+
+    // 进行缩进并换行
+    indent: () => void,
+
+    // 取消缩进并换行
+    deIndent: () => void
 }
 

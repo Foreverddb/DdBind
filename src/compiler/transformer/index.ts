@@ -1,4 +1,4 @@
-import {JavascriptAST, TemplateAST, TransformerContext} from "types/compiler";
+import {FunctionDeclNode, TemplateAST, TransformerContext} from "types/compiler";
 import {traverseNode} from "compiler/transformer/traverse";
 import {
     transformComment,
@@ -12,7 +12,7 @@ import {
  * 将模版AST转换为JS AST
  * @param templateAST 目标模版AST
  */
-export function transform(templateAST: TemplateAST): JavascriptAST {
+export function transform(templateAST: TemplateAST): FunctionDeclNode {
     const context = {
         currentNode: null,
         childIndex: 0,
@@ -26,5 +26,5 @@ export function transform(templateAST: TemplateAST): JavascriptAST {
         ]
     } as TransformerContext
     traverseNode(templateAST, context)
-    return templateAST.jsNode as JavascriptAST
+    return templateAST.jsNode as FunctionDeclNode
 }

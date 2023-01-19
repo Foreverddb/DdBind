@@ -2633,16 +2633,6 @@
         };
     }
     /**
-     * 创建CommentLiteral型的JsAST
-     * @param value 注释值
-     */
-    function createCommentLiteral(value) {
-        return {
-            type: 'CommentLiteral',
-            value: value
-        };
-    }
-    /**
      * 创建Identifier型的JsAST
      * @param name identifier值
      */
@@ -2692,7 +2682,10 @@
         if (node.type !== 'Text') {
             return;
         }
-        node.jsNode = createStringLiteral(node.content);
+        var callExp = createCallExpression('_v', [
+            createStringLiteral(node.content)
+        ]);
+        node.jsNode = callExp;
     }
     /**
      * 转换注释节点
@@ -2702,7 +2695,12 @@
         if (node.type !== 'Comment') {
             return;
         }
-        node.jsNode = createCommentLiteral(node.content);
+        var callExp = createCallExpression('_h', [
+            createStringLiteral('comment'),
+            { type: 'ElementDescriptor' },
+            createStringLiteral(node.content)
+        ]);
+        node.jsNode = callExp;
     }
     /**
      * 转换插值节点
@@ -2739,6 +2737,7 @@
                     on: {},
                     attrs: {}
                 };
+                // 依次解析不同的prop并分类
                 node.props.forEach(function (prop) {
                     if (prop.type === 'Directive') {
                         elementDescriptor_1.directives.push({
@@ -2757,7 +2756,7 @@
                 callExp.arguments.push(elementDescriptor_1);
             }
             else {
-                callExp.arguments.push(null);
+                callExp.arguments.push({ type: 'ElementDescriptor' });
             }
             // _h第三个参数为全部子节点
             node.children.length === 1
@@ -2805,6 +2804,135 @@
         return templateAST.jsNode;
     }
 
+    function genNode(node, context) {
+        switch (node.type) {
+            case "FunctionDeclaration":
+                genFunctionDeclaration(node, context);
+                break;
+            case "ReturnStatement":
+                genReturnStatement(node, context);
+                break;
+            case "CallExpression":
+                genCallExpression(node, context);
+                break;
+            case "StringLiteral":
+                genStringLiteral(node, context);
+                break;
+            case "ArrayExpression":
+                genArrayExpression(node, context);
+                break;
+            case "ElementDescriptor":
+                genElementDescriptor(node, context);
+                break;
+        }
+    }
+    /**
+     * 生成函数型代码
+     * @param node 目标节点
+     * @param context 上下文对象
+     */
+    function genFunctionDeclaration(node, context) {
+        // 从 context 对象中取出工具函数
+        var push = context.push, indent = context.indent, deIndent = context.deIndent;
+        push("with(this) ");
+        push("{");
+        indent();
+        // 函数体
+        node.body.forEach(function (n) { return genNode(n, context); });
+        deIndent();
+        push("}");
+    }
+    /**
+     * 生成返回型代码
+     * @param node 目标节点
+     * @param context 上下文对象
+     */
+    function genReturnStatement(node, context) {
+        var push = context.push;
+        push("return ");
+        genNode(node.return, context);
+    }
+    function genCallExpression(node, context) {
+        var push = context.push;
+        var callee = node.callee, args = node.arguments;
+        push("".concat(callee.name, "("));
+        genNodeList(args, context);
+        push(")");
+    }
+    /**
+     * 生成参数列表
+     * @param nodes 节点数组
+     * @param context 上下文对象
+     */
+    function genNodeList(nodes, context) {
+        var push = context.push;
+        for (var i = 0; i < nodes.length; i++) {
+            var node = nodes[i];
+            genNode(node, context);
+            if (i < nodes.length - 1) {
+                push(', ');
+            }
+        }
+    }
+    /**
+     * 生成字符串代码
+     * @param node 目标节点
+     * @param context 上下文对象
+     */
+    function genStringLiteral(node, context) {
+        var push = context.push;
+        // 对于字符串字面量，只需要追加与 node.value 对应的字符串即可
+        push("'".concat(node.value, "'"));
+    }
+    /**
+     * 生成数组表达式代码
+     * @param node 目标数组节点
+     * @param context 上下文对象
+     */
+    function genArrayExpression(node, context) {
+        var push = context.push;
+        push('[');
+        genNodeList(node.elements, context);
+        push(']');
+    }
+    function genElementDescriptor(node, context) {
+        var push = context.push, indent = context.indent, deIndent = context.deIndent;
+        push('{');
+        indent();
+        if (node.attrs && Object.keys(node.attrs).length > 0) {
+            push("'attrs': {");
+            indent();
+            Object.keys(node.attrs).forEach(function (attrKey) {
+                push("'".concat(attrKey, "': '").concat(node.attrs[attrKey], "'"));
+            });
+            deIndent();
+            push('},');
+        }
+        if (node.on && Object.keys(node.on).length > 0) {
+            push("'on': {");
+            indent();
+            Object.keys(node.on).forEach(function (attrKey) {
+                push("'".concat(attrKey, "': ").concat(node.on[attrKey]));
+            });
+            deIndent();
+            push('},');
+        }
+        if (node.directives && Object.keys(node.directives).length > 0) {
+            push("'directives': [");
+            indent();
+            for (var i = 0; i < node.directives.length; i++) {
+                push("".concat(JSON.stringify(node.directives[i])));
+                if (i < node.directives.length - 1) {
+                    push(', ');
+                }
+            }
+            deIndent();
+            push(']');
+        }
+        deIndent();
+        push('}');
+    }
+
     /**
      * 根据jsAST生成渲染函数代码
      * @param jsAST 目标jsAST
@@ -2812,10 +2940,23 @@
     function generate(jsAST) {
         var context = {
             code: '',
+            currentIndent: 0,
             push: function (code) {
                 context.code += code;
+            },
+            newLine: function () {
+                context.code += '\n' + '  '.repeat(context.currentIndent);
+            },
+            indent: function () {
+                context.currentIndent++;
+                context.newLine();
+            },
+            deIndent: function () {
+                context.currentIndent--;
+                context.newLine();
             }
         };
+        genNode(jsAST, context);
         return context.code;
     }
 
@@ -2833,7 +2974,7 @@
             console.log(templateAST);
             var jsAST = transform(templateAST);
             console.log(jsAST);
-            var code = generate();
+            var code = generate(jsAST);
             console.log(code);
         };
         Compiler.prototype.compile = function () {

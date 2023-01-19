@@ -2,9 +2,9 @@ import {
     ArgumentNode,
     CallExpressionNode, DirectiveDescriptor, DirectiveNode, ElementDescriptor, ExpressionNode,
     IdentifierNode,
-    JavascriptAST,
+    FunctionDeclNode,
     JavascriptNode,
-    TemplateAST
+    TemplateAST, ReturnStatementNode
 } from "types/compiler";
 
 /**
@@ -14,17 +14,6 @@ import {
 function createStringLiteral(value: string): ArgumentNode {
     return {
         type: 'StringLiteral',
-        value
-    } as ArgumentNode
-}
-
-/**
- * 创建CommentLiteral型的JsAST
- * @param value 注释值
- */
-function createCommentLiteral(value: string): ArgumentNode {
-    return {
-        type: 'CommentLiteral',
         value
     } as ArgumentNode
 }
@@ -56,7 +45,7 @@ function createArrayExpression(elements: Array<JavascriptNode>): ArgumentNode {
  * @param callee 要call的函数名
  * @param args 传入的参数
  */
-function createCallExpression(callee: string, args: Array<ArgumentNode>): CallExpressionNode {
+function createCallExpression(callee: string, args: Array<JavascriptNode>): CallExpressionNode {
     return {
         type: 'CallExpression',
         callee: createIdentifier(callee),
@@ -85,7 +74,11 @@ export function transformText(node: TemplateAST) {
         return
     }
 
-    node.jsNode = createStringLiteral(node.content as string)
+    const callExp = createCallExpression('_v', [
+        createStringLiteral(node.content as string)
+    ])
+
+    node.jsNode = callExp
 }
 
 /**
@@ -97,7 +90,13 @@ export function transformComment(node: TemplateAST) {
         return
     }
 
-    node.jsNode = createCommentLiteral(node.content as string)
+    const callExp = createCallExpression('_h', [
+        createStringLiteral('comment'),
+        {type: 'ElementDescriptor'},
+        createStringLiteral(node.content as string)
+    ])
+
+    node.jsNode = callExp
 }
 
 /**
@@ -112,6 +111,7 @@ export function transformInterpolation(node: TemplateAST) {
     const callExp = createCallExpression('_s', [
         createExpressionLiteral(node.content as string)
     ])
+
 
     node.jsNode = callExp
 }
@@ -141,6 +141,7 @@ export function transformElement(node: TemplateAST): () => void {
                 attrs: {}
             } as ElementDescriptor
 
+            // 依次解析不同的prop并分类
             node.props.forEach(prop => {
                 if (prop.type === 'Directive') {
                     elementDescriptor.directives.push({
@@ -157,7 +158,7 @@ export function transformElement(node: TemplateAST): () => void {
 
             callExp.arguments.push(elementDescriptor)
         } else {
-            callExp.arguments.push(null)
+            callExp.arguments.push({type: 'ElementDescriptor'})
         }
 
         // _h第三个参数为全部子节点
@@ -176,14 +177,14 @@ export function transformRoot(node: TemplateAST): () => void {
             return
         }
 
-        const vnodeJSAST = node.children[0].jsNode
+        const vnodeJSAST: JavascriptNode = node.children[0].jsNode
         node.jsNode = {
             type: 'FunctionDeclaration',
             id: {type: 'Identifier', name: 'render'},
             body: [{
                 type: 'ReturnStatement',
                 return: vnodeJSAST
-            }]
-        } as JavascriptAST
+            } as ReturnStatementNode]
+        } as FunctionDeclNode
     }
 }

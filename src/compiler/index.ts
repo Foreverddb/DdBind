@@ -1,6 +1,6 @@
 import {DdBind} from "DdBind";
 import {parse} from "compiler/parser";
-import {JavascriptAST, TemplateAST} from "types/compiler";
+import {FunctionDeclNode, JavascriptNode, TemplateAST} from "types/compiler";
 import {transform} from "compiler/transformer";
 import {generate} from "compiler/generator";
 
@@ -22,7 +22,7 @@ export class Compiler {
         const templateAST: TemplateAST = parse(source)
         console.log(templateAST)
 
-        const jsAST: JavascriptAST = transform(templateAST)
+        const jsAST: JavascriptNode = transform(templateAST)
         console.log(jsAST)
 
         const code: string = generate(jsAST)
