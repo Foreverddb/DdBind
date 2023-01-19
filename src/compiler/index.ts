@@ -1,4 +1,4 @@
-import {DdBind} from "../module/ddbind";
+import {DdBind} from "DdBind";
 import {parse} from "compiler/parser";
 import {TemplateAst} from "types/compiler";
 
@@ -15,7 +15,13 @@ export class Compiler {
     }
 
     private compileElement(el: HTMLElement) {
-        const source = el.innerHTML
+        // const source = el.innerHTML
+        const source = `<h1 @click="test()">
+            testtt &lt;&#60;
+            <div>ttttrt</div>
+        </h1>
+        <div d-model="ddd">ddd</div>
+        <div id="fuck"></div>`
         const templateAst: TemplateAst = parse(source)
         console.log(templateAst)
     }

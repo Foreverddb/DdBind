@@ -12,7 +12,8 @@
       "reactivity/*": ["src/reactivity/*"],
       "renderer/*": ["src/renderer/*"],
       "compiler/*": ["src/compiler/*"],
-      "utils/*": ["src/utils/*"]
+      "utils/*": ["src/utils/*"],
+      "DdBind": ["src/module"]
     },
     "lib": [
       "dom",

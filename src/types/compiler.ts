@@ -13,7 +13,7 @@ export interface ParserContext {
     source: string
     mode: ParserModes,
     advanceBy: (num: number) => void,
-    trimSpaces: () => void,
+    advanceSpaces: () => void,
     trimEndSpaces: () => void
 }
 
@@ -24,10 +24,11 @@ export interface TemplateAst {
     tag?: string,
     // 是否为自闭合标签
     isSelfClosing?: boolean,
+    content?: string,
     // 子节点
-    children: Array<TemplateAst>,
+    children?: Array<TemplateAst>,
     // 节点参数
-    props?: Array<DirectiveNode | PropertyNode>
+    props?: Array<DirectiveNode | AttributeNode>
 }
 
 export interface DirectiveNode {
@@ -37,10 +38,12 @@ export interface DirectiveNode {
 }
 
 export interface ExpressionNode {
-
+    type: string,
+    content: string
 }
 
-export interface PropertyNode {
+export interface AttributeNode {
     type: string,
-    name: string
+    name: string,
+    value: string
 }
