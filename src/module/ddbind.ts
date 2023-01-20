@@ -3,7 +3,7 @@ import {Compiler} from "compiler/index";
 import {Container, Renderer, VNode} from "types/renderer";
 import {effect} from "core/effect";
 import {createRenderer} from "renderer/index";
-import {ref} from "reactivity/ref";
+import {proxyRefs, ref, toRefs} from "reactivity/ref";
 import {computed} from "reactivity/computed";
 import {watch} from "reactivity/watch";
 
@@ -13,6 +13,8 @@ export class DdBind {
     $options: DdBindOptions
 
     $compile: Compiler
+
+    $data: object
 
     $render: Function
 
@@ -59,35 +61,56 @@ export class DdBind {
 
         // 绑定完成即触发onMounted钩子
         this.$options.onMounted && this.$options.onMounted.bind(this)()
-
     }
 
     /**
      * 将vm对象与option数据进行绑定
      */
     private _bind() {
-        Object.assign(this, this.$options.setup()) // 将setup返回值绑定到vm对象上
+        const setups: object = this.$options.setup.bind(this)() // 为setup绑定当前执行环境
+
+        const methods: object = this.$options.methods
+        this.$data = this.$options.data()
+
+        Object.assign(setups, this.$data)
+
+        // 将setup返回值处理为data或methods
+        for (const setupsKey in setups) {
+            if (setups[setupsKey] instanceof Function) {
+                methods[setupsKey] = setups[setupsKey]
+            } else {
+                this.$data[setupsKey] = setups[setupsKey] // 合并setup与data块的属性
+            }
+        }
 
         // 绑定计算属性
         const computedList: object = this.$options.computed
         for (const key in computedList) {
-            if (!key.startsWith('$') && !key.startsWith('_'))
-                this[key] = computed((computedList[key] as Function).bind(this))
+            if (!key.startsWith('$') && !key.startsWith('_')) {
+                Object.defineProperty(this, key, {
+                    value: computed((computedList[key] as Function).bind(this)),
+                    writable: false
+                })
+            }
         }
 
         // 绑定方法
-        const methods: object = this.$options.methods
         for (const key in methods) {
-            if (!key.startsWith('$') && !key.startsWith('_'))
-                this[key] = (methods[key] as Function).bind(this)
+            if (!key.startsWith('$') && !key.startsWith('_')) {
+                Object.defineProperty(this, key, {
+                    value: (methods[key] as Function).bind(this),
+                    writable: false
+                })
+            }
         }
 
         // 绑定响应式数据
-        const data: object = this.$options.data()
-        for (const key in data) {
-            if (!key.startsWith('$') && !key.startsWith('_'))
-                this[key] = ref(data[key])
+        for (const key in this.$data) {
+            if (!this.$data[key]._is_Ref_) {
+                this.$data[key] = ref(this.$data[key])
+            }
         }
+        Object.assign(this, this.$data)
 
         // 绑定侦听属性
         const watchesFn: object = this.$options.watch

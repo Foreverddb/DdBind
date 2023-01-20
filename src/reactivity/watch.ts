@@ -1,5 +1,4 @@
 import {effect} from "core/effect";
-import {Ref} from "reactivity/ref";
 import {warn} from "utils/debug";
 
 /**
@@ -51,7 +50,7 @@ export function watch<T>(target: object | (() => any), callback: WatchCallback<T
         isLazy: true,
         scheduler: () => {
             let data = effectFn()
-            newValue = (data instanceof Ref) ? data.value : {...data} // 防止与oldValue引用同一对象
+            newValue = (data._is_Ref_) ? data.value : {...data} // 防止与oldValue引用同一对象
 
             if (onExpiredHandler) onExpiredHandler() // 若注册了过期函数则在回调前执行
 
@@ -59,5 +58,6 @@ export function watch<T>(target: object | (() => any), callback: WatchCallback<T
             oldValue = newValue
         }
     })
+
     oldValue = {...effectFn()} // 防止与newValue引用同一对象
 }

@@ -27,7 +27,6 @@ export class Compiler {
     /**
      * 编译目标元素
      * @param el 目标HTML
-     * @private
      */
     private compileElement(el: HTMLElement) {
         const source = el.innerHTML
@@ -37,6 +36,7 @@ export class Compiler {
         const jsAST: JavascriptNode = transform(templateAST) // 将模版AST转换为jsAST
 
         const code: string = generate(jsAST) // 根据jsAST生成渲染函数代码
+        console.log(code)
 
         this.$vm.$render = createFunction(code, this.$vm)
     }

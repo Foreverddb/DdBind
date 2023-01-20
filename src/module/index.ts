@@ -1,5 +1,7 @@
 import {DdBindOptions} from "types/ddbind";
 import {DdBind} from "./ddbind";
+import {proxyRefs, ref} from "reactivity/ref";
+import {effect} from "core/effect";
 
 export {DdBind}
 
@@ -9,5 +11,5 @@ export {watch} from 'reactivity/watch'
 export {computed} from 'reactivity/computed'
 
 export function createApp(options: DdBindOptions) {
-    return new DdBind(options)
+    return proxyRefs(new DdBind(options))
 }

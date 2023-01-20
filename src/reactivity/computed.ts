@@ -1,6 +1,5 @@
 import {effect, EffectFunction, track, trigger} from "core/index";
 import {RefObj} from "types/reactivity";
-import {Ref} from "reactivity/ref";
 
 /**
  * 计算属性对象的value应为只读，其只能通过getter的返回值获取

@@ -8,53 +8,71 @@
 <body>
 <div id="app">
     <div>
-        <!-- 测试一下注释 -->
         <h1>
-            ff
-            <div>ttttrt</div>
+            outText
+            <div>text</div>
         </h1>
-        duib
-        <input d-model="foo" type="text" />
-        <div @click="change" id="test">{{ foo }} {{ re.text }} {{ com }}</div>
+        <input d-model="foo" type="text"/>
+        <div id="test">
+            foo: {{ foo === 'bar' ? re.text : foo }}
+        </div>
+        <button @click="change">
+            click foo
+        </button>
+        <div>
+            {{ com }}
+        </div>
+        <button @click="countAdd">
+            clicked {{ count }} times
+        </button>
+        <button @click="fuck">
+            fuck me {{ fuck }}
+        </button>
     </div>
 </div>
 <script>
-
     let app = DdBind.createApp({
         data() {
             return {
-                foo: '[dsdhba]'
+                foo: 'bar',
+                count: 0
             }
         },
         setup() {
             const bar = DdBind.ref('')
-            const re = DdBind.reactive({text: 'aasdsan'})
-
+            const re = DdBind.reactive({text: 'foo is bar'})
+            const fuck = DdBind.computed(() => {
+                return this.foo + 'fuckme'
+            })
             return {
                 bar,
-                re
+                re,
+                fuck
             }
         },
         computed: {
-          com() {
-              return '..' + this.foo.value + 'shit'
-          }
+            com() {
+                return 'I\'m computed of foo:' + this.foo
+            }
         },
         methods: {
-          change() {
-              this.foo.value = 'shifins'
-          }
+            change() {
+                this.foo = 'clicked!!!!!!!!'
+            },
+            countAdd() {
+                this.count ++
+            }
         },
         watch: {
-          foo(newValue) {
-              console.log(newValue)
-          }
+            foo(newValue) {
+                console.log(newValue)
+            }
         },
         onMounted() {
             console.log('mounted')
             setTimeout(() => {
-                this.foo.value = 'fuckme'
-            }, 1000)
+                this.foo = 'mounted triggered'
+            }, 2000)
         }
     })
     app.mount('#app')

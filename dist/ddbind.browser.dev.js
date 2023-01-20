@@ -2985,7 +2985,7 @@
      */
     function genExpressionLiteral(node, context) {
         var push = context.push;
-        push("(".concat(node.value, ").value ? (").concat(node.value, ").value : (").concat(node.value, ")"));
+        push("(".concat(node.value, ")"));
     }
     /**
      * 生成键值对表达式代码
@@ -3139,13 +3139,13 @@
         /**
          * 编译目标元素
          * @param el 目标HTML
-         * @private
          */
         Compiler.prototype.compileElement = function (el) {
             var source = el.innerHTML;
             var templateAST = parse(source); // 编译HTML模版为模版AST
             var jsAST = transform(templateAST); // 将模版AST转换为jsAST
             var code = generate(jsAST); // 根据jsAST生成渲染函数代码
+            console.log(code);
             this.$vm.$render = createFunction(code, this.$vm);
         };
         return Compiler;
@@ -3610,44 +3610,38 @@
     }
 
     /**
-     * 构建响应式对象时用其作为装饰器
-     * 实现嵌套的响应式对象
+     * 创建一个代理对象，在其中可以自动脱ref
+     * @param target 目标对象
      */
-    var DecoratedValue = /** @class */ (function () {
-        function DecoratedValue(value) {
-            this.value = value;
-        }
-        return DecoratedValue;
-    }());
-    /**
-     * 响应式数据代理类
-     */
-    var Ref = /** @class */ (function () {
-        function Ref(value) {
-            this._value = reactive(new DecoratedValue(value));
-        }
-        Object.defineProperty(Ref.prototype, "value", {
-            get: function () {
-                return this._value.value;
+    function proxyRefs(target) {
+        return new Proxy(target, {
+            get: function (target, p, receiver) {
+                var value = Reflect.get(target, p, receiver);
+                // console.log(target, p, value)
+                return (value && value._is_Ref_) ? value.value : value; // 若为ref型对象则返回其value
             },
-            set: function (newValue) {
-                this._value.value = newValue;
-            },
-            enumerable: false,
-            configurable: true
+            set: function (target, p, newValue, receiver) {
+                var value = target[p];
+                if (value && value._is_Ref_) { // 若为ref型对象则设置其value
+                    value.value = newValue;
+                    return true;
+                }
+                return Reflect.set(target, p, newValue, receiver);
+            }
         });
-        return Ref;
-    }());
-    // 覆盖toString方法，使其在文本插值时可以自动解包装
-    Ref.prototype.toString = function () {
-        return this.value.toString();
-    };
+    }
     /**
-     * 创建一个可代理原始值的响应式对象
-     * @param value 响应式值,
+     * 创建一个可以代理原始值的响应式数据对象
+     * @param value 目标值
      */
     function ref(value) {
-        return new Ref(value);
+        var wrapper = {
+            value: value
+        };
+        Object.defineProperty(wrapper, '_is_Ref_', {
+            value: true
+        });
+        return reactive(wrapper);
     }
 
     /**
@@ -3746,7 +3740,7 @@
             isLazy: true,
             scheduler: function () {
                 var data = effectFn();
-                newValue = (data instanceof Ref) ? data.value : __assign({}, data); // 防止与oldValue引用同一对象
+                newValue = (data._is_Ref_) ? data.value : __assign({}, data); // 防止与oldValue引用同一对象
                 if (onExpiredHandler)
                     onExpiredHandler(); // 若注册了过期函数则在回调前执行
                 callback(newValue, oldValue, onExpired);
@@ -3790,25 +3784,45 @@
          * 将vm对象与option数据进行绑定
          */
         DdBind.prototype._bind = function () {
-            Object.assign(this, this.$options.setup()); // 将setup返回值绑定到vm对象上
+            var setups = this.$options.setup.bind(this)(); // 为setup绑定当前执行环境
+            var methods = this.$options.methods;
+            this.$data = this.$options.data();
+            Object.assign(setups, this.$data);
+            // 将setup返回值处理为data或methods
+            for (var setupsKey in setups) {
+                if (setups[setupsKey] instanceof Function) {
+                    methods[setupsKey] = setups[setupsKey];
+                }
+                else {
+                    this.$data[setupsKey] = setups[setupsKey]; // 合并setup与data块的属性
+                }
+            }
             // 绑定计算属性
             var computedList = this.$options.computed;
             for (var key in computedList) {
-                if (!key.startsWith('$') && !key.startsWith('_'))
-                    this[key] = computed(computedList[key].bind(this));
+                if (!key.startsWith('$') && !key.startsWith('_')) {
+                    Object.defineProperty(this, key, {
+                        value: computed(computedList[key].bind(this)),
+                        writable: false
+                    });
+                }
             }
             // 绑定方法
-            var methods = this.$options.methods;
             for (var key in methods) {
-                if (!key.startsWith('$') && !key.startsWith('_'))
-                    this[key] = methods[key].bind(this);
+                if (!key.startsWith('$') && !key.startsWith('_')) {
+                    Object.defineProperty(this, key, {
+                        value: methods[key].bind(this),
+                        writable: false
+                    });
+                }
             }
             // 绑定响应式数据
-            var data = this.$options.data();
-            for (var key in data) {
-                if (!key.startsWith('$') && !key.startsWith('_'))
-                    this[key] = ref(data[key]);
+            for (var key in this.$data) {
+                if (!this.$data[key]._is_Ref_) {
+                    this.$data[key] = ref(this.$data[key]);
+                }
             }
+            Object.assign(this, this.$data);
             // 绑定侦听属性
             var watchesFn = this.$options.watch;
             for (var key in watchesFn) {
@@ -3820,7 +3834,7 @@
     }());
 
     function createApp(options) {
-        return new DdBind(options);
+        return proxyRefs(new DdBind(options));
     }
 
     exports.DdBind = DdBind;

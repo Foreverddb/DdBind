@@ -139,7 +139,7 @@ function genArrayExpression(node: ArgumentNode, context: GeneratorContext) {
 function genExpressionLiteral(node: ArgumentNode, context: GeneratorContext) {
     const {push} = context
 
-    push(`(${node.value}).value ? (${node.value}).value : (${node.value})`)
+    push(`(${node.value})`)
 }
 
 /**

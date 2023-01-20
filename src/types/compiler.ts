@@ -1,3 +1,50 @@
+// 解析器上下文
+export interface ParserContext {
+    source: string
+    mode: ParserModes,
+    advanceBy: (num: number) => void,
+    advanceSpaces: () => void,
+    trimEndSpaces: () => void
+}
+
+// ast转换器上下文
+export interface TransformerContext {
+    // 当前正在转换的节点
+    currentNode: TemplateAST,
+
+    // 储存当前子节点在父节点中的位置索引
+    childIndex: number,
+
+    // currentNode的父节点
+    parent: TemplateAST,
+
+    nodeTransforms: Array<(templateAST: TemplateAST, context?: TransformerContext) => Function>
+}
+
+
+// code生成器上下文
+export interface GeneratorContext {
+    // 生成的代码
+    code: string,
+
+    // 拼接代码
+    push: (code: string) => void,
+
+    // 换行
+    newLine: () => void,
+
+    // 当前缩进级别
+    currentIndent: number,
+
+    // 进行缩进并换行
+    indent: () => void,
+
+    // 取消缩进并换行
+    deIndent: () => void
+}
+
+
+// 解析器状态
 export const enum ParserModes {
     // 解析标签与HTML实体
     DATA,
@@ -8,16 +55,6 @@ export const enum ParserModes {
     // 作为纯文本处理
     RAWTEXT,
 
-    // 作为纯文本处理
-    CDATA
-}
-
-export interface ParserContext {
-    source: string
-    mode: ParserModes,
-    advanceBy: (num: number) => void,
-    advanceSpaces: () => void,
-    trimEndSpaces: () => void
 }
 
 // 模版抽象语法树
@@ -122,39 +159,4 @@ export interface JavascriptNode {
     type: 'FunctionDeclaration' | 'CallExpression' | 'StringLiteral' | 'ArrayExpression'
         | 'ExpressionLiteral' | 'Identifier' | 'ElementDescriptor' | 'ReturnStatement'
         | 'KeyValuePair' | 'ObjectExpression'
-}
-
-export interface TransformerContext {
-    // 当前正在转换的节点
-    currentNode: TemplateAST,
-
-    // 储存当前子节点在父节点中的位置索引
-    childIndex: number,
-
-    // currentNode的父节点
-    parent: TemplateAST,
-
-    nodeTransforms: Array<(templateAST: TemplateAST, context?: TransformerContext) => Function>
-}
-
-
-// code生成器上下文
-export interface GeneratorContext {
-    // 生成的代码
-    code: string,
-
-    // 拼接代码
-    push: (code: string) => void,
-
-    // 换行
-    newLine: () => void,
-
-    // 当前缩进级别
-    currentIndent: number,
-
-    // 进行缩进并换行
-    indent: () => void,
-
-    // 取消缩进并换行
-    deIndent: () => void
 }
