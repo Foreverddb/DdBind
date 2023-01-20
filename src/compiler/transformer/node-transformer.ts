@@ -185,6 +185,52 @@ export function transformElement(node: TemplateAST): () => void {
                 ]
             } as ArgumentNode
 
+
+            // 依次解析不同的prop并分类
+            node.props.forEach(prop => {
+                if (prop.type === 'Directive') { // 指令节点
+                    directives.push(
+                        createPairNode(
+                            createStringLiteral(prop.name),
+                            createExpressionLiteral(prop.exp.content)
+                        )
+                    )
+                } else if (prop.type === 'Event') { // 事件处理函数节点
+                    events.push(
+                        createPairNode(
+                            createStringLiteral(prop.name),
+                            // 若函数名合法则校验是否为函数并判断是否需要包装函数体
+                            createExpressionLiteral(`
+                            (typeof (${
+                                    /^([^\x00-\xff]|[a-zA-Z_$])([^\x00-\xff]|[a-zA-Z0-9_$])*$/i.test(prop.exp.content)
+                                        ? prop.exp.content
+                                        : 'null'
+                                }) === 'function')
+                                ? (${prop.exp.content})
+                                : () => { (${prop.exp.content}) }
+                                `
+                            )
+                        )
+                    )
+                } else if (prop.type === 'ReactiveProp') { // 绑定响应式数据的prop节点
+                    attrs.push(
+                        createPairNode(
+                            createStringLiteral(prop.name),
+                            createExpressionLiteral(prop.exp.content)
+                        )
+                    )
+                } else {
+                    // 字符串型attrs
+                    attrs.push(
+                        createPairNode(
+                            createStringLiteral(prop.name),
+                            createStringLiteral(prop.value)
+                        )
+                    )
+                }
+            })
+
+            // 解析并转换内置指令，优先级最高，因此在解析完常规props后才进行此操作
             transformEventDirectiveExpression(
                 node.props,
                 {
@@ -196,52 +242,13 @@ export function transformElement(node: TemplateAST): () => void {
                 }
             )
 
-            // 依次解析不同的prop并分类
-            node.props.forEach(prop => {
-                if (prop.type === 'Directive') {
-                    directives.push(
-                        createPairNode(
-                            createStringLiteral(prop.name),
-                            createExpressionLiteral(prop.exp.content)
-                        )
-                    )
-                } else if (prop.type === 'Event') {
-                    events.push(
-                        createPairNode(
-                            createStringLiteral(prop.name),
-                            createExpressionLiteral(
-                                /\([a-z0-9, ]*\)/i.test(prop.exp.content)
-                                    ? `() => { ${prop.exp.content} }`
-                                    : prop.exp.content
-                            )
-                        )
-                    )
-                } else if (prop.type === 'ReactiveProp') {
-                    attrs.push(
-                        createPairNode(
-                            createStringLiteral(prop.name),
-                            createExpressionLiteral(prop.exp.content)
-                        )
-                    )
-                } else {
-                    attrs.push(
-                        createPairNode(
-                            createStringLiteral(prop.name),
-                            createStringLiteral(prop.value)
-                        )
-                    )
-                }
-            })
-
             callExp.arguments.push(elementDescriptor)
         } else {
             callExp.arguments.push({type: 'ObjectExpression', elements: []} as ArgumentNode)
         }
 
         // _h第三个参数为全部子节点
-        node.children.length === 1
-            ? callExp.arguments.push(node.children[0].jsNode)
-            : callExp.arguments.push(createArrayExpression(node.children.map(c => c.jsNode)))
+        callExp.arguments.push(createArrayExpression(node.children.map(c => c.jsNode)))
 
         node.jsNode = callExp
     }

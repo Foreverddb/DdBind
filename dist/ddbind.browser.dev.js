@@ -2303,13 +2303,15 @@
             // 根据propName来进行不同类型属性的处理
             = void 0;
             // 根据propName来进行不同类型属性的处理
-            if (propName.startsWith('@') || propName.startsWith('d-on:')) {
+            if (propName.startsWith('@') || propName.startsWith('d-on:') || propName.startsWith('on')) {
                 prop = {
                     type: 'Event',
                     // 事件名
                     name: propName.startsWith('@')
                         ? propName.slice(1, propName.length)
-                        : propName.slice(5, propName.length),
+                        : (propName.startsWith('d-on:')
+                            ? propName.slice(5, propName.length)
+                            : propName.slice(2, propName.length)),
                     exp: {
                         type: 'Expression',
                         content: propValue
@@ -2320,6 +2322,17 @@
                 prop = {
                     type: 'Directive',
                     name: propName,
+                    exp: {
+                        type: 'Expression',
+                        content: propValue
+                    }
+                };
+            }
+            else if (propName.startsWith(':')) {
+                console.log(propName);
+                prop = {
+                    type: 'ReactiveProp',
+                    name: propName.slice(1, propName.length),
                     exp: {
                         type: 'Expression',
                         content: propValue
@@ -2819,17 +2832,40 @@
         return context.code;
     }
 
+    /**
+     * 针对directives指令部分转换代码表达式
+     * @param directives 指令节点
+     * @param context 上下文对象
+     */
     function transformEventDirectiveExpression(directives, context) {
+        // 过滤节点数组
         directives.filter(function (x) { return x.type === 'Directive'; }).forEach(function (directive) {
             genEventExpression(directive, context);
         });
     }
+    /**
+     * 根据指令内容
+     * @param directive 目标指令节点
+     * @param context 上下文对象
+     */
     function genEventExpression(directive, context) {
         var createStringLiteral = context.createStringLiteral, createExpressionLiteral = context.createExpressionLiteral, createPairNode = context.createPairNode;
         switch (directive.name) {
             case 'd-model':
-                context.events.push(createPairNode(createStringLiteral('click'), createExpressionLiteral("($event) => { ".concat(codeGuards[directive.name], " ").concat(directive.exp.content, " = $event.target.value }"))));
-                context.attrs.push(createPairNode(createStringLiteral('value'), createExpressionLiteral("".concat(directive.exp.content))));
+                // model指令即通过input事件双向绑定ref变量
+                context.events.push(createPairNode(createStringLiteral('input'), createExpressionLiteral("($event) => { ".concat(codeGuards[directive.name], " (").concat(directive.exp.content, ") = $event.target.value }"))));
+                context.attrs.push(createPairNode(createStringLiteral('value'), createExpressionLiteral("(".concat(directive.exp.content, ")"))));
+                break;
+            case 'd-show':
+                // show指令即简单通过style来标识是否展示此节点
+                context.attrs.push(createPairNode(createStringLiteral('style'), createExpressionLiteral("(".concat(directive.exp.content, ") ? {display: ''} : {display: 'none'}"))));
+                break;
+            case 'd-if':
+                // if指令通过在vnode上做标记来决定是否渲染此节点
+                context.attrs.push(createPairNode(createStringLiteral('_if_'), createExpressionLiteral(directive.exp.content)));
+                break;
+            case 'style':
+                console.log(directive.exp.content);
                 break;
         }
     }
@@ -2989,6 +3025,27 @@
                         }
                     ]
                 };
+                // 依次解析不同的prop并分类
+                node.props.forEach(function (prop) {
+                    if (prop.type === 'Directive') { // 指令节点
+                        directives_1.push(createPairNode(createStringLiteral(prop.name), createExpressionLiteral(prop.exp.content)));
+                    }
+                    else if (prop.type === 'Event') { // 事件处理函数节点
+                        events_1.push(createPairNode(createStringLiteral(prop.name), 
+                        // 若函数名合法则校验是否为函数并判断是否需要包装函数体
+                        createExpressionLiteral("\n                            (typeof (".concat(/^([^\x00-\xff]|[a-zA-Z_$])([^\x00-\xff]|[a-zA-Z0-9_$])*$/i.test(prop.exp.content)
+                            ? prop.exp.content
+                            : 'null', ") === 'function')\n                                ? (").concat(prop.exp.content, ")\n                                : () => { (").concat(prop.exp.content, ") }\n                                "))));
+                    }
+                    else if (prop.type === 'ReactiveProp') { // 绑定响应式数据的prop节点
+                        attrs_1.push(createPairNode(createStringLiteral(prop.name), createExpressionLiteral(prop.exp.content)));
+                    }
+                    else {
+                        // 字符串型attrs
+                        attrs_1.push(createPairNode(createStringLiteral(prop.name), createStringLiteral(prop.value)));
+                    }
+                });
+                // 解析并转换内置指令，优先级最高，因此在解析完常规props后才进行此操作
                 transformEventDirectiveExpression(node.props, {
                     events: events_1,
                     attrs: attrs_1,
@@ -2996,32 +3053,13 @@
                     createExpressionLiteral: createExpressionLiteral,
                     createPairNode: createPairNode
                 });
-                // 依次解析不同的prop并分类
-                node.props.forEach(function (prop) {
-                    if (prop.type === 'Directive') {
-                        directives_1.push(createPairNode(createStringLiteral(prop.name), createExpressionLiteral(prop.exp.content)));
-                    }
-                    else if (prop.type === 'Event') {
-                        events_1.push(createPairNode(createStringLiteral(prop.name), createExpressionLiteral(/\([a-z0-9, ]*\)/i.test(prop.exp.content)
-                            ? "() => { ".concat(prop.exp.content, " }")
-                            : prop.exp.content)));
-                    }
-                    else if (prop.type === 'ReactiveProp') {
-                        attrs_1.push(createPairNode(createStringLiteral(prop.name), createExpressionLiteral(prop.exp.content)));
-                    }
-                    else {
-                        attrs_1.push(createPairNode(createStringLiteral(prop.name), createStringLiteral(prop.value)));
-                    }
-                });
                 callExp.arguments.push(elementDescriptor);
             }
             else {
                 callExp.arguments.push({ type: 'ObjectExpression', elements: [] });
             }
             // _h第三个参数为全部子节点
-            node.children.length === 1
-                ? callExp.arguments.push(node.children[0].jsNode)
-                : callExp.arguments.push(createArrayExpression(node.children.map(function (c) { return c.jsNode; })));
+            callExp.arguments.push(createArrayExpression(node.children.map(function (c) { return c.jsNode; })));
             node.jsNode = callExp;
         };
     }
@@ -3085,6 +3123,7 @@
     }());
     var VnodeBuilder = /** @class */ (function () {
         function VnodeBuilder() {
+            this.if = true;
         }
         VnodeBuilder.prototype.setType = function (type) {
             this.type = type;
@@ -3102,6 +3141,9 @@
             this.el = el;
             return this;
         };
+        VnodeBuilder.prototype.setIf = function (value) {
+            this.if = value;
+        };
         VnodeBuilder.prototype.build = function () {
             var _this = this;
             var vnode = new VnodeImpl();
@@ -3113,30 +3155,53 @@
         return VnodeBuilder;
     }());
 
+    /**
+     * 创建一个Vnode节点
+     * @param type Vnode类别
+     * @param props Vnode的props对象
+     * @param children 子节点
+     */
     function createVnode(type, props, children) {
         if (type === 'comment') {
             return VnodeUtil.builder().setType(CommentVnodeSymbol).setChildren(children).build();
         }
         else {
             var builder = VnodeUtil.builder().setType(type).setChildren(children);
-            var propsObject = {};
+            var propsObject = {}; // 空对象用以暂存prop数据
+            // attrs的内容可以直接添加
             if (props.attrs) {
                 Object.assign(propsObject, props.attrs);
             }
+            // 将事件转化为prop名的形式
             if (props.on) {
                 for (var eventName in props.on) {
                     var propKey = 'on' + eventName[0].toUpperCase() + eventName.slice(1, eventName.length); // 构造为以on开头的prop名
                     propsObject[propKey] = props.on[eventName];
                 }
             }
+            // 根据表达式解析并设置vnode的渲染flag
+            if (propsObject['_if_'] !== undefined && !propsObject['_if_']) {
+                builder.setIf(false);
+            }
+            else {
+                builder.setIf(true);
+            }
             // 设置属性值
             builder.setProps(propsObject);
             return builder.build();
         }
     }
+    /**
+     * 创建一个文本节点
+     * @param value 文本内容
+     */
     function createTextVnode(value) {
         return VnodeUtil.builder().setType(TextVnodeSymbol).setChildren(value).build();
     }
+    /**
+     * 将目标内容转化为文本内容
+     * @param value 目标值
+     */
     function stringVal(value) {
         return value === null
             ? ''
@@ -3351,7 +3416,7 @@
                     Object.assign(el.style, newValue[style]);
                 }
             }
-            else {
+            else if (typeof newValue === 'object') {
                 Object.assign(el.style, newValue);
             }
         }
@@ -3375,26 +3440,31 @@
      * @param container 挂载容器
      */
     function mountElement(vnode, container) {
-        var el = vnode.el = document.createElement(vnode.type);
-        // 将每个child挂载到真实dom
-        if (typeof vnode.children === 'string') {
-            el.textContent = vnode.children;
-        }
-        else if (Array.isArray(vnode.children)) {
-            vnode.children.forEach(function (child) {
-                patch(null, child, el);
-            });
-        }
-        else {
-            patch(null, vnode.children, el);
-        }
-        // 为dom挂载attr
-        if (vnode.props) {
-            for (var key in vnode.props) {
-                patchProps(el, key, null, vnode.props[key]);
+        if (vnode.if) {
+            var el_1 = vnode.el = document.createElement(vnode.type);
+            // 将每个child挂载到真实dom
+            if (typeof vnode.children === 'string') {
+                el_1.textContent = vnode.children;
             }
+            else if (Array.isArray(vnode.children)) {
+                vnode.children.forEach(function (child) {
+                    patch(null, child, el_1);
+                });
+            }
+            else {
+                patch(null, vnode.children, el_1);
+            }
+            // 为dom挂载attr
+            if (vnode.props) {
+                for (var key in vnode.props) {
+                    patchProps(el_1, key, null, vnode.props[key]);
+                }
+            }
+            container.insertBefore(el_1, null);
         }
-        container.insertBefore(el, null);
+        else if (vnode.el) {
+            unmountElement(vnode);
+        }
     }
     /**
      * 卸载vnode
@@ -3404,6 +3474,7 @@
         var parent = vnode.el.parentNode;
         if (parent) {
             parent.removeChild(vnode.el);
+            vnode.el = undefined;
         }
     }
     /**
@@ -3413,62 +3484,60 @@
      * @param container
      */
     function updateElementChild(oldVNode, newVNode, container) {
-        if (typeof newVNode.children === 'string') { // 新vnode的children为字符串的情况
-            if (Array.isArray(oldVNode.children)) {
-                oldVNode.children.forEach(function (child) {
-                    unmountElement(child);
-                });
-            }
-            container.textContent = newVNode.children;
-        }
-        else if (Array.isArray(newVNode.children)) { // 新vnode的children类型为一组组件的情况
-            if (Array.isArray(oldVNode.children)) {
-                // 当新老节点children都是一组节点时需要进行Diff操作
-                // 在尽可能减少DOM操作的情况下更新节点内容
-                var oldChildren = oldVNode.children;
-                var newChildren = newVNode.children;
-                var oldLen = oldChildren.length;
-                var newLen = newChildren.length;
-                var commonLen = Math.min(oldLen, newLen);
-                for (var i = 0; i < commonLen; i++) {
-                    patch(oldChildren[i], newChildren[i], container);
+        if (newVNode.if) {
+            if (typeof newVNode.children === 'string') { // 新vnode的children为字符串的情况
+                if (Array.isArray(oldVNode.children)) {
+                    oldVNode.children.forEach(function (child) {
+                        unmountElement(child);
+                    });
                 }
-                // 若新子节点数大于旧子节点，说明有新的元素需要挂载
-                // 否则说明需要卸载旧节点
-                if (newLen > oldLen) {
-                    for (var i = commonLen; i < newLen; i++) {
-                        patch(null, newChildren[i], container);
+                container.textContent = newVNode.children;
+            }
+            else if (Array.isArray(newVNode.children)) { // 新vnode的children类型为一组组件的情况
+                if (Array.isArray(oldVNode.children)) {
+                    // 当新老节点children都是一组节点时需要进行Diff操作
+                    // 在尽可能减少DOM操作的情况下更新节点内容
+                    var oldChildren = oldVNode.children;
+                    var newChildren = newVNode.children;
+                    var oldLen = oldChildren.length;
+                    var newLen = newChildren.length;
+                    var commonLen = Math.min(oldLen, newLen);
+                    for (var i = 0; i < commonLen; i++) {
+                        patch(oldChildren[i], newChildren[i], container);
+                    }
+                    // 若新子节点数大于旧子节点，说明有新的元素需要挂载
+                    // 否则说明需要卸载旧节点
+                    if (newLen > oldLen) {
+                        for (var i = commonLen; i < newLen; i++) {
+                            patch(null, newChildren[i], container);
+                        }
+                    }
+                    else if (oldLen > newLen) {
+                        for (var i = commonLen; i < oldLen; i++) {
+                            unmountElement(oldChildren[i]);
+                        }
                     }
                 }
-                else if (oldLen > newLen) {
-                    for (var i = commonLen; i < oldLen; i++) {
-                        unmountElement(oldChildren[i]);
-                    }
+                else {
+                    container.textContent = '';
+                    newVNode.children.forEach(function (child) {
+                        patch(null, child, container);
+                    });
                 }
-                // // 卸载后更新全部子节点
-                // oldVNode.children.forEach(child => {
-                //     unmountElement(child)
-                // })
-                // newVNode.children.forEach(child => {
-                //     patch(null, child, container)
-                // })
             }
-            else {
-                container.textContent = '';
-                newVNode.children.forEach(function (child) {
-                    patch(null, child, container);
-                });
+            else { // 若新子节点不存在则挨个卸载
+                if (Array.isArray(oldVNode.children)) {
+                    oldVNode.children.forEach(function (child) {
+                        unmountElement(child);
+                    });
+                }
+                else if (typeof oldVNode.children === 'string') {
+                    container.textContent = '';
+                }
             }
         }
-        else { // 若新子节点不存在则挨个卸载
-            if (Array.isArray(oldVNode.children)) {
-                oldVNode.children.forEach(function (child) {
-                    unmountElement(child);
-                });
-            }
-            else if (typeof oldVNode.children === 'string') {
-                container.textContent = '';
-            }
+        else {
+            unmountElement(oldVNode);
         }
     }
     /**
@@ -3477,23 +3546,28 @@
      * @param newVNode
      */
     function updateElement(oldVNode, newVNode) {
-        var el = newVNode.el = oldVNode.el;
-        var oldProps = oldVNode.props;
-        var newProps = newVNode.props;
-        // 更新props
-        for (var key in newProps) {
-            if (newProps[key] !== oldProps[key]) {
-                patchProps(el, key, oldProps[key], newProps[key]);
+        if (newVNode.if) {
+            var el = newVNode.el = oldVNode.el;
+            var oldProps = oldVNode.props;
+            var newProps = newVNode.props;
+            // 更新props
+            for (var key in newProps) {
+                if (newProps[key] !== oldProps[key]) {
+                    patchProps(el, key, oldProps[key], newProps[key]);
+                }
             }
-        }
-        // 清除新vnode中不存在的老prop
-        for (var key in oldProps) {
-            if (!(key in newProps)) {
-                patchProps(el, key, oldProps[key], null);
+            // 清除新vnode中不存在的老prop
+            for (var key in oldProps) {
+                if (!(key in newProps)) {
+                    patchProps(el, key, oldProps[key], null);
+                }
             }
+            // 更新子节点
+            updateElementChild(oldVNode, newVNode, el);
         }
-        // 更新子节点
-        updateElementChild(oldVNode, newVNode, el);
+        else {
+            unmountElement(oldVNode);
+        }
     }
     /**
      * 完成vnode的挂载更新
@@ -3509,7 +3583,7 @@
         }
         var vnodeType = typeof newVNode.type;
         if (vnodeType === 'string') { // vnode为普通标签
-            if (!oldVNode) {
+            if (!oldVNode || !oldVNode.el) {
                 mountElement(newVNode, container); // 挂载vnode
             }
             else {
@@ -3533,7 +3607,7 @@
                     }
                 }
             }
-            else if (newVNode.type === CommentVnodeSymbol) {
+            else if (newVNode.type === CommentVnodeSymbol) { // 注释节点
                 if (typeof newVNode.children !== 'string') {
                     error("comment node requires children being type of \"string\", received type ".concat(typeof newVNode.children), newVNode);
                 }
@@ -3793,6 +3867,9 @@
         oldValue = __assign({}, effectFn()); // 防止与newValue引用同一对象
     }
 
+    /**
+     * app对象，同时也是响应式数据绑定this的vm对象
+     */
     var DdBind = /** @class */ (function () {
         function DdBind(options) {
             this.$options = options;
@@ -3865,12 +3942,13 @@
                     this.$data[key] = ref(this.$data[key]);
                 }
             }
-            Object.assign(this, this.$data);
+            Object.assign(this, this.$data); // 将data绑定在当前vm对象上
             // 绑定侦听属性
             var watchesFn = this.$options.watch;
             for (var key in watchesFn) {
-                if (!key.startsWith('$') && !key.startsWith('_'))
-                    watch(this[key], watchesFn[key]);
+                if (!key.startsWith('$') && !key.startsWith('_')) {
+                    watch(this.$data[key], watchesFn[key]); // 绑定在vm上的ref已经自动解value，要实现侦听需要使用$data里的原始响应式对象
+                }
             }
         };
         return DdBind;

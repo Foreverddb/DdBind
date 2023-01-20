@@ -123,13 +123,15 @@ function parseAttributes(context: ParserContext): Array<PropNode> {
 
         let prop: PropNode
         // 根据propName来进行不同类型属性的处理
-        if (propName.startsWith('@') || propName.startsWith('d-on:')) {
+        if (propName.startsWith('@') || propName.startsWith('d-on:') || propName.startsWith('on')) {
             prop = {
                 type: 'Event',
                 // 事件名
                 name: propName.startsWith('@')
                     ? propName.slice(1, propName.length)
-                    : propName.slice(5, propName.length),
+                    : (propName.startsWith('d-on:')
+                        ? propName.slice(5, propName.length)
+                        : propName.slice(2, propName.length)),
                 exp: {
                     type: 'Expression',
                     content: propValue
@@ -139,6 +141,16 @@ function parseAttributes(context: ParserContext): Array<PropNode> {
             prop = {
                 type: 'Directive',
                 name: propName,
+                exp: {
+                    type: 'Expression',
+                    content: propValue
+                }
+            } as PropNode
+        } else if (propName.startsWith(':')) {
+            console.log(propName)
+            prop = {
+                type: 'ReactiveProp',
+                name: propName.slice(1, propName.length),
                 exp: {
                     type: 'Expression',
                     content: propValue

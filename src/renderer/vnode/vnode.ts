@@ -5,17 +5,21 @@ export class VnodeUtil {
         return new VnodeBuilder()
     }
 }
-class VnodeImpl implements VNode{
-     type: string | symbol
-     children: string | Array<VNode>
-     props?: any
-     el?: Text | Container
+
+class VnodeImpl implements VNode {
+    type: string | symbol
+    children: string | Array<VNode>
+    props?: any
+    el?: Text | Container
+    if?: boolean
 }
+
 class VnodeBuilder {
     private type: string | VNode | symbol
     private children: string | Array<VNode>
     private props?: any
     private el?: Text | Container
+    private if?: boolean = true
 
     public setType(type: string | VNode | symbol): VnodeBuilder {
         this.type = type
@@ -32,9 +36,13 @@ class VnodeBuilder {
         return this
     }
 
-    public setEl(el?: Text | Container): VnodeBuilder{
+    public setEl(el?: Text | Container): VnodeBuilder {
         this.el = el
         return this
+    }
+
+    public setIf(value: boolean) {
+        this.if = value
     }
 
     public build(): VNode {

@@ -3,10 +3,13 @@ import {Compiler} from "compiler/index";
 import {Container, Renderer, VNode} from "types/renderer";
 import {effect} from "core/effect";
 import {createRenderer} from "renderer/index";
-import {proxyRefs, ref, toRefs} from "reactivity/ref";
+import {ref} from "reactivity/ref";
 import {computed} from "reactivity/computed";
 import {watch} from "reactivity/watch";
 
+/**
+ * app对象，同时也是响应式数据绑定this的vm对象
+ */
 export class DdBind {
     $el: HTMLElement
 
@@ -88,7 +91,7 @@ export class DdBind {
         for (const key in computedList) {
             if (!key.startsWith('$') && !key.startsWith('_')) {
                 Object.defineProperty(this, key, {
-                    value: computed((computedList[key] as Function).bind(this)),
+                    value: computed((computedList[key] as Function).bind(this)), // 为方法绑定运行时this
                     writable: false
                 })
             }
@@ -98,7 +101,7 @@ export class DdBind {
         for (const key in methods) {
             if (!key.startsWith('$') && !key.startsWith('_')) {
                 Object.defineProperty(this, key, {
-                    value: (methods[key] as Function).bind(this),
+                    value: (methods[key] as Function).bind(this), // 为方法绑定运行时this
                     writable: false
                 })
             }
@@ -110,13 +113,14 @@ export class DdBind {
                 this.$data[key] = ref(this.$data[key])
             }
         }
-        Object.assign(this, this.$data)
+        Object.assign(this, this.$data) // 将data绑定在当前vm对象上
 
         // 绑定侦听属性
         const watchesFn: object = this.$options.watch
         for (const key in watchesFn) {
-            if (!key.startsWith('$') && !key.startsWith('_'))
-                watch(this[key], watchesFn[key])
+            if (!key.startsWith('$') && !key.startsWith('_')) {
+                watch(this.$data[key], watchesFn[key]) // 绑定在vm上的ref已经自动解value，要实现侦听需要使用$data里的原始响应式对象
+            }
         }
     }
 }

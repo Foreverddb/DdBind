@@ -10,20 +10,25 @@
     <div>
         <h1>
             outText
-            <div>text</div>
+            <span d-if="foo === 'bar'">text</span>
         </h1>
-        <input d-model="foo" type="text"/>
+        <input :placeholder="re.text" d-model="foo" :type="foo.startsWith('bar') ? 'text' : 'password'"/>
         <div id="test">
             foo: {{ foo === 'bar' ? re.text : foo }}
+        </div>
+        <div>
+            {{ com }}
         </div>
         <button @click="change">
             click foo
         </button>
-        <div>
-            {{ com }}
-        </div>
-        <button @click="countAdd">
-            clicked {{ count }} times
+
+        <p>clicked {{ count }} times </p>
+        <button style="color: red" d-show="count < 3" @click="countAdd">
+            click me to increase (I will hide when count is greater than 3)
+        </button>
+        <button @click="count --">
+            click me to decrease
         </button>
     </div>
 </div>
@@ -58,7 +63,7 @@
         },
         watch: {
             foo(newValue) {
-                console.log(newValue)
+                console.log('foo\'s new value: ' + newValue)
             }
         },
         onMounted() {
