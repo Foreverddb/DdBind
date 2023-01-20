@@ -1,11 +1,8 @@
 import {
-    DirectiveNode,
     ParserContext,
     ParserModes,
-    AttributeNode,
     TemplateAST,
-    ExpressionNode,
-    EventNode
+    ExpressionNode, PropNode,
 } from "types/compiler";
 import {error} from "utils/debug";
 
@@ -42,7 +39,8 @@ export function parseChildren(context: ParserContext, parenStack: Array<Template
                     if (context.source.startsWith('<!--')) { // 注释标签开头
                         node = parseComment(context)
                     } else if (context.source.startsWith('<![CDATA[')) { // CDATA标签
-                        node = parseCDATA(context, parenStack)
+                        error(`the parser is not supporting CDATA mode.`, null)
+                        // node = parseCDATA(context, parenStack)
                     }
                 } else if (context.source[1] === '/') { // 结束标签
                     error('invalid end tag in HTML.', context.source)
@@ -87,9 +85,9 @@ function isEnd(context: ParserContext, parenStack: Array<TemplateAST>): boolean 
  * 解析HTML标签的属性
  * @param context 上下文对象
  */
-function parseAttributes(context: ParserContext): Array<DirectiveNode | AttributeNode | EventNode> {
+function parseAttributes(context: ParserContext): Array<PropNode> {
     const {advanceBy, advanceSpaces} = context
-    const props: Array<DirectiveNode | AttributeNode | EventNode> = []
+    const props: Array<PropNode> = []
 
     while (
         !context.source.startsWith('>') && !context.source.startsWith('/')
@@ -123,7 +121,7 @@ function parseAttributes(context: ParserContext): Array<DirectiveNode | Attribut
         }
         advanceSpaces()
 
-        let prop: DirectiveNode | AttributeNode | EventNode
+        let prop: PropNode
         // 根据propName来进行不同类型属性的处理
         if (propName.startsWith('@') || propName.startsWith('d-on:')) {
             prop = {
@@ -136,7 +134,7 @@ function parseAttributes(context: ParserContext): Array<DirectiveNode | Attribut
                     type: 'Expression',
                     content: propValue
                 }
-            } as EventNode
+            } as PropNode
         } else if (propName.startsWith('d-')) {
             prop = {
                 type: 'Directive',
@@ -145,13 +143,13 @@ function parseAttributes(context: ParserContext): Array<DirectiveNode | Attribut
                     type: 'Expression',
                     content: propValue
                 }
-            } as DirectiveNode
+            } as PropNode
         } else {
             prop = {
                 type: 'Attribute',
                 name: propName,
                 value: propValue
-            } as AttributeNode
+            } as PropNode
         }
 
         props.push(prop)
@@ -177,7 +175,7 @@ function parseTag(context: ParserContext, type: string = 'start'): TemplateAST {
     advanceBy(match[0].length) // 消费该标签内容
     advanceSpaces()
 
-    const props: Array<DirectiveNode | AttributeNode | EventNode> = parseAttributes(context) // 解析标签属性
+    const props: Array<PropNode> = parseAttributes(context) // 解析标签属性
 
     const isSelfClosing = selfClosingTags.includes(tag)
     advanceBy(
@@ -247,10 +245,6 @@ function parseComment(context: ParserContext): TemplateAST {
         type: 'Comment',
         content
     } as TemplateAST;
-}
-
-function parseCDATA(context: ParserContext, parenStack: Array<TemplateAST>) {
-    return undefined;
 }
 
 /**

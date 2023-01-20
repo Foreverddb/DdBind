@@ -2222,7 +2222,8 @@
                             node = parseComment(context);
                         }
                         else if (context.source.startsWith('<![CDATA[')) { // CDATA标签
-                            node = parseCDATA();
+                            error("the parser is not supporting CDATA mode.", null);
+                            // node = parseCDATA(context, parenStack)
                         }
                     }
                     else if (context.source[1] === '/') { // 结束标签
@@ -2412,9 +2413,6 @@
             type: 'Comment',
             content: content
         };
-    }
-    function parseCDATA(context, parenStack) {
-        return undefined;
     }
     /**
      * 解析文本插值
@@ -2830,7 +2828,8 @@
         var createStringLiteral = context.createStringLiteral, createExpressionLiteral = context.createExpressionLiteral, createPairNode = context.createPairNode;
         switch (directive.name) {
             case 'd-model':
-                context.target.push(createPairNode(createStringLiteral('click'), createExpressionLiteral("($event) => { ".concat(codeGuards[directive.name], " ").concat(directive.exp.content, " = $event.target.value }"))));
+                context.events.push(createPairNode(createStringLiteral('click'), createExpressionLiteral("($event) => { ".concat(codeGuards[directive.name], " ").concat(directive.exp.content, " = $event.target.value }"))));
+                context.attrs.push(createPairNode(createStringLiteral('value'), createExpressionLiteral("".concat(directive.exp.content))));
                 break;
         }
     }
@@ -2991,7 +2990,8 @@
                     ]
                 };
                 transformEventDirectiveExpression(node.props, {
-                    target: events_1,
+                    events: events_1,
+                    attrs: attrs_1,
                     createStringLiteral: createStringLiteral,
                     createExpressionLiteral: createExpressionLiteral,
                     createPairNode: createPairNode
@@ -3006,7 +3006,10 @@
                             ? "() => { ".concat(prop.exp.content, " }")
                             : prop.exp.content)));
                     }
-                    else if (prop.type === 'Attribute') {
+                    else if (prop.type === 'ReactiveProp') {
+                        attrs_1.push(createPairNode(createStringLiteral(prop.name), createExpressionLiteral(prop.exp.content)));
+                    }
+                    else {
                         attrs_1.push(createPairNode(createStringLiteral(prop.name), createStringLiteral(prop.value)));
                     }
                 });
@@ -3420,13 +3423,35 @@
         }
         else if (Array.isArray(newVNode.children)) { // 新vnode的children类型为一组组件的情况
             if (Array.isArray(oldVNode.children)) {
-                // 卸载后更新全部子节点
-                oldVNode.children.forEach(function (child) {
-                    unmountElement(child);
-                });
-                newVNode.children.forEach(function (child) {
-                    patch(null, child, container);
-                });
+                // 当新老节点children都是一组节点时需要进行Diff操作
+                // 在尽可能减少DOM操作的情况下更新节点内容
+                var oldChildren = oldVNode.children;
+                var newChildren = newVNode.children;
+                var oldLen = oldChildren.length;
+                var newLen = newChildren.length;
+                var commonLen = Math.min(oldLen, newLen);
+                for (var i = 0; i < commonLen; i++) {
+                    patch(oldChildren[i], newChildren[i], container);
+                }
+                // 若新子节点数大于旧子节点，说明有新的元素需要挂载
+                // 否则说明需要卸载旧节点
+                if (newLen > oldLen) {
+                    for (var i = commonLen; i < newLen; i++) {
+                        patch(null, newChildren[i], container);
+                    }
+                }
+                else if (oldLen > newLen) {
+                    for (var i = commonLen; i < oldLen; i++) {
+                        unmountElement(oldChildren[i]);
+                    }
+                }
+                // // 卸载后更新全部子节点
+                // oldVNode.children.forEach(child => {
+                //     unmountElement(child)
+                // })
+                // newVNode.children.forEach(child => {
+                //     patch(null, child, container)
+                // })
             }
             else {
                 container.textContent = '';

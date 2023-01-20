@@ -44,7 +44,9 @@ export interface GeneratorContext {
 }
 
 export interface DirectiveTransformerContext {
-    target: Array<PairNode>,
+    events: Array<PairNode>,
+
+    attrs: Array<PairNode>
 
     createExpressionLiteral: (value: string) => ArgumentNode
 
@@ -85,40 +87,22 @@ export interface TemplateAST {
     children?: Array<TemplateAST>,
 
     // 节点参数
-    props?: Array<DirectiveNode | AttributeNode | EventNode>
+    props?: Array<PropNode>
 
     jsNode?: JavascriptNode
 }
 
 // 指令节点
-export interface DirectiveNode {
-    type: 'Directive',
+export interface PropNode {
+    type: 'Directive' | 'Event' | 'Attribute' | 'ReactiveProp',
 
     // 指令名
     name: string,
 
+    value?: string
+
     // 指令表达式
-    exp: ExpressionNode
-}
-
-export interface EventNode {
-    type: 'Event',
-
-    // 事件名
-    name: string,
-
-    exp: ExpressionNode
-}
-
-// HTML attr节点
-export interface AttributeNode {
-    type: 'Attribute',
-
-    // attr名
-    name: string,
-
-    // attr值
-    value: string
+    exp?: ExpressionNode
 }
 
 // 表达式节点

@@ -1,6 +1,6 @@
 import {
     ArgumentNode,
-    CallExpressionNode, DirectiveNode,
+    CallExpressionNode,
     ExpressionNode,
     FunctionDeclNode,
     IdentifierNode,
@@ -188,7 +188,8 @@ export function transformElement(node: TemplateAST): () => void {
             transformEventDirectiveExpression(
                 node.props,
                 {
-                    target: events,
+                    events: events,
+                    attrs: attrs,
                     createStringLiteral,
                     createExpressionLiteral,
                     createPairNode
@@ -215,7 +216,14 @@ export function transformElement(node: TemplateAST): () => void {
                             )
                         )
                     )
-                } else if (prop.type === 'Attribute') {
+                } else if (prop.type === 'ReactiveProp') {
+                    attrs.push(
+                        createPairNode(
+                            createStringLiteral(prop.name),
+                            createExpressionLiteral(prop.exp.content)
+                        )
+                    )
+                } else {
                     attrs.push(
                         createPairNode(
                             createStringLiteral(prop.name),

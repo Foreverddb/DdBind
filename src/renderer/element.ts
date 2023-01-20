@@ -130,13 +130,40 @@ export function updateElementChild(oldVNode: VNode, newVNode: VNode, container: 
         container.textContent = newVNode.children
     } else if (Array.isArray(newVNode.children)) { // 新vnode的children类型为一组组件的情况
         if (Array.isArray(oldVNode.children)) {
-            // 卸载后更新全部子节点
-            oldVNode.children.forEach(child => {
-                unmountElement(child)
-            })
-            newVNode.children.forEach(child => {
-                patch(null, child, container)
-            })
+             // 当新老节点children都是一组节点时需要进行Diff操作
+             // 在尽可能减少DOM操作的情况下更新节点内容
+
+            const oldChildren: VNode[] = oldVNode.children
+            const newChildren: VNode[] = newVNode.children
+
+            const oldLen: number = oldChildren.length
+            const newLen: number = newChildren.length
+
+            const commonLen: number = Math.min(oldLen, newLen)
+
+            for (let i = 0; i < commonLen; i++) {
+                patch(oldChildren[i], newChildren[i], container)
+            }
+
+            // 若新子节点数大于旧子节点，说明有新的元素需要挂载
+            // 否则说明需要卸载旧节点
+            if (newLen > oldLen) {
+                for (let i = commonLen; i < newLen; i++) {
+                    patch(null, newChildren[i], container)
+                }
+            } else if (oldLen > newLen) {
+                for (let i = commonLen; i < oldLen; i++) {
+                    unmountElement(oldChildren[i])
+                }
+            }
+
+            // // 卸载后更新全部子节点
+            // oldVNode.children.forEach(child => {
+            //     unmountElement(child)
+            // })
+            // newVNode.children.forEach(child => {
+            //     patch(null, child, container)
+            // })
         } else {
             container.textContent = ''
             newVNode.children.forEach(child => {
