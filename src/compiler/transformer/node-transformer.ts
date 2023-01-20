@@ -1,6 +1,6 @@
 import {
     ArgumentNode,
-    CallExpressionNode,
+    CallExpressionNode, DirectiveNode,
     ExpressionNode,
     FunctionDeclNode,
     IdentifierNode,
@@ -10,6 +10,7 @@ import {
     TemplateAST
 } from "types/compiler";
 import {warn} from "utils/debug";
+import {transformEventDirectiveExpression} from "compiler/directives";
 
 /**
  * 创建StringLiteral型的JsAST
@@ -183,6 +184,16 @@ export function transformElement(node: TemplateAST): () => void {
                     }
                 ]
             } as ArgumentNode
+
+            transformEventDirectiveExpression(
+                node.props,
+                {
+                    target: events,
+                    createStringLiteral,
+                    createExpressionLiteral,
+                    createPairNode
+                }
+            )
 
             // 依次解析不同的prop并分类
             node.props.forEach(prop => {

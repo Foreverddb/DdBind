@@ -43,6 +43,16 @@ export interface GeneratorContext {
     deIndent: () => void
 }
 
+export interface DirectiveTransformerContext {
+    target: Array<PairNode>,
+
+    createExpressionLiteral: (value: string) => ArgumentNode
+
+    createStringLiteral: (value: string) => ArgumentNode
+
+    createPairNode: (n1: ArgumentNode, n2: ArgumentNode) => PairNode
+}
+
 
 // 解析器状态
 export const enum ParserModes {

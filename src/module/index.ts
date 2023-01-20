@@ -1,7 +1,6 @@
 import {DdBindOptions} from "types/ddbind";
 import {DdBind} from "./ddbind";
 import {proxyRefs, ref} from "reactivity/ref";
-import {effect} from "core/effect";
 
 export {DdBind}
 

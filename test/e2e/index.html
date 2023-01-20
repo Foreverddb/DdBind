@@ -25,9 +25,6 @@
         <button @click="countAdd">
             clicked {{ count }} times
         </button>
-        <button @click="fuck">
-            fuck me {{ fuck }}
-        </button>
     </div>
 </div>
 <script>
@@ -41,13 +38,9 @@
         setup() {
             const bar = DdBind.ref('')
             const re = DdBind.reactive({text: 'foo is bar'})
-            const fuck = DdBind.computed(() => {
-                return this.foo + 'fuckme'
-            })
             return {
                 bar,
-                re,
-                fuck
+                re
             }
         },
         computed: {

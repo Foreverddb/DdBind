@@ -34,10 +34,6 @@ export function parseChildren(context: ParserContext, parenStack: Array<Template
 
     while (!isEnd(context, parenStack)) {
         let node: TemplateAST
-        // // 若直到下一个标签开始全为空白，则清除空白内容
-        // if (/^[\t\r\n\f ]*</.test(context.source)) {
-        //     context.advanceSpaces()
-        // }
 
         if (context.mode === ParserModes.DATA || context.mode === ParserModes.RCDATA) {
             // 仅DATA模式支持解析标签节点

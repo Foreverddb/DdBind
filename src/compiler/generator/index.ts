@@ -1,6 +1,10 @@
 import {GeneratorContext, JavascriptNode} from "types/compiler";
 import {genNode} from "compiler/generator/generator";
 
+export {
+    codeGuards
+} from './events'
+
 /**
  * 根据jsAST生成渲染函数代码
  * @param jsAST 目标jsAST
