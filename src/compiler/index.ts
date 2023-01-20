@@ -30,7 +30,7 @@ export class Compiler {
      * @private
      */
     private compileElement(el: HTMLElement) {
-        const source = el.outerHTML
+        const source = el.innerHTML
 
         const templateAST: TemplateAST = parse(source) // 编译HTML模版为模版AST
 

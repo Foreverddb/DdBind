@@ -2831,7 +2831,10 @@
             if (node.type !== 'Root') {
                 return;
             }
-            var vnodeJSAST = node.children[0].jsNode;
+            var vnodeJSAST = node.children[0].jsNode; // 根节点只能有一个子元素
+            if (node.children.length > 1) {
+                warn("the template requires only one child node, detected ".concat(node.children.length, ". \n            The DdBind parser will only parse the first one"), null);
+            }
             node.jsNode = {
                 type: 'FunctionDeclaration',
                 id: { type: 'Identifier', name: 'render' },
@@ -2941,7 +2944,7 @@
      * @param context 上下文对象
      */
     function genNodeList(nodes, context) {
-        var push = context.push; context.indent; context.deIndent;
+        var push = context.push;
         for (var i = 0; i < nodes.length; i++) {
             var node = nodes[i];
             genNode(node, context);
@@ -3090,7 +3093,6 @@
     }());
 
     function createVnode(type, props, children) {
-        console.log(props);
         if (type === 'comment') {
             return VnodeUtil.builder().setType(CommentVnodeSymbol).setChildren(children).build();
         }
@@ -3140,7 +3142,7 @@
          * @private
          */
         Compiler.prototype.compileElement = function (el) {
-            var source = el.outerHTML;
+            var source = el.innerHTML;
             var templateAST = parse(source); // 编译HTML模版为模版AST
             var jsAST = transform(templateAST); // 将模版AST转换为jsAST
             var code = generate(jsAST); // 根据jsAST生成渲染函数代码
@@ -3362,6 +3364,9 @@
                 patch(null, child, el);
             });
         }
+        else {
+            patch(null, vnode.children, el);
+        }
         // 为dom挂载attr
         if (vnode.props) {
             for (var key in vnode.props) {
@@ -3528,36 +3533,6 @@
         };
     }
 
-    var DdBind = /** @class */ (function () {
-        function DdBind(options) {
-            this.$options = options;
-        }
-        /**
-         * 将app挂载到指定dom上
-         * @param el dom或selector
-         */
-        DdBind.prototype.mount = function (el) {
-            var _this = this;
-            var container;
-            if (typeof el === 'string') {
-                container = document.querySelector(el);
-            }
-            else {
-                container = el || document.body;
-            }
-            this.$el = container;
-            this.$compile = new Compiler(container, this); // 创建对应编译器
-            this.$renderer = createRenderer(); // 创建渲染器
-            Object.assign(this, this.$options.setup()); // 将setup返回值绑定到vm对象上
-            // 注册响应式数据，当数据改变时重新渲染
-            effect(function () {
-                _this.$vnode = _this.$render(); // 挂载并渲染vnode
-                _this.$renderer.render(_this.$vnode, _this.$el);
-            });
-        };
-        return DdBind;
-    }());
-
     var reactiveMap = new Map();
     /**
      * 为所有代理对象与数组绑定新的toString()
@@ -3675,6 +3650,37 @@
         return new Ref(value);
     }
 
+    /**
+     * 创建一个计算属性
+     * @param getter 计算属性方法
+     */
+    function computed(getter) {
+        var buffer; // 缓存上一次计算值
+        var dirty = true; // 脏值flag，脏值检测依赖的是响应式数据Proxy
+        var effectFn = effect(getter, {
+            isLazy: true,
+            // 当依赖的响应式数据发生变化时刷新缓存
+            scheduler: function () {
+                dirty = true;
+                trigger(obj, 'value'); // 因为执行副作用函数模式为懒加载，当依赖的响应式数据发送变化时需手动触发其副作用函数
+            }
+        });
+        var obj = {
+            get value() {
+                if (dirty) {
+                    buffer = effectFn();
+                    dirty = false;
+                }
+                track(obj, 'value'); // 添加依赖的响应式对象到计算属性的依赖
+                return buffer;
+            }
+        };
+        obj.toString = function () {
+            return this.value;
+        };
+        return obj;
+    }
+
     /******************************************************************************
     Copyright (c) Microsoft Corporation.
 
@@ -3728,9 +3734,6 @@
         if (typeof target === 'function') {
             getter = target;
         }
-        else if (target instanceof Ref) {
-            getter = function () { return traverseRef(target.value); };
-        }
         else {
             getter = function () { return traverseRef(target); };
         }
@@ -3742,7 +3745,8 @@
         var effectFn = effect(getter, {
             isLazy: true,
             scheduler: function () {
-                newValue = __assign({}, effectFn()); // 防止与oldValue引用同一对象
+                var data = effectFn();
+                newValue = (data instanceof Ref) ? data.value : __assign({}, data); // 防止与oldValue引用同一对象
                 if (onExpiredHandler)
                     onExpiredHandler(); // 若注册了过期函数则在回调前执行
                 callback(newValue, oldValue, onExpired);
@@ -3752,36 +3756,68 @@
         oldValue = __assign({}, effectFn()); // 防止与newValue引用同一对象
     }
 
-    /**
-     * 创建一个计算属性
-     * @param getter 计算属性方法
-     */
-    function computed(getter) {
-        var buffer; // 缓存上一次计算值
-        var dirty = true; // 脏值flag，脏值检测依赖的是响应式数据Proxy
-        var effectFn = effect(getter, {
-            isLazy: true,
-            // 当依赖的响应式数据发生变化时刷新缓存
-            scheduler: function () {
-                dirty = true;
-                trigger(obj, 'value'); // 因为执行副作用函数模式为懒加载，当依赖的响应式数据发送变化时需手动触发其副作用函数
+    var DdBind = /** @class */ (function () {
+        function DdBind(options) {
+            this.$options = options;
+        }
+        /**
+         * 将app挂载到指定dom上
+         * @param el dom或selector
+         */
+        DdBind.prototype.mount = function (el) {
+            var _this = this;
+            var container;
+            if (typeof el === 'string') {
+                container = document.querySelector(el);
             }
-        });
-        var obj = {
-            get value() {
-                if (dirty) {
-                    buffer = effectFn();
-                    dirty = false;
-                }
-                track(obj, 'value'); // 添加依赖的响应式对象到计算属性的依赖
-                return buffer;
+            else {
+                container = el || document.body;
+            }
+            this.$el = container;
+            this.$compile = new Compiler(container, this); // 创建对应编译器
+            this.$renderer = createRenderer(); // 创建渲染器
+            container.innerHTML = ''; // 清空container原有的HTML结构
+            this._bind();
+            // 注册响应式数据，当数据改变时重新渲染
+            effect(function () {
+                _this.$vnode = _this.$render(); // 挂载并渲染vnode
+                _this.$renderer.render(_this.$vnode, _this.$el);
+            });
+            // 绑定完成即触发onMounted钩子
+            this.$options.onMounted && this.$options.onMounted.bind(this)();
+        };
+        /**
+         * 将vm对象与option数据进行绑定
+         */
+        DdBind.prototype._bind = function () {
+            Object.assign(this, this.$options.setup()); // 将setup返回值绑定到vm对象上
+            // 绑定计算属性
+            var computedList = this.$options.computed;
+            for (var key in computedList) {
+                if (!key.startsWith('$') && !key.startsWith('_'))
+                    this[key] = computed(computedList[key].bind(this));
+            }
+            // 绑定方法
+            var methods = this.$options.methods;
+            for (var key in methods) {
+                if (!key.startsWith('$') && !key.startsWith('_'))
+                    this[key] = methods[key].bind(this);
+            }
+            // 绑定响应式数据
+            var data = this.$options.data();
+            for (var key in data) {
+                if (!key.startsWith('$') && !key.startsWith('_'))
+                    this[key] = ref(data[key]);
+            }
+            // 绑定侦听属性
+            var watchesFn = this.$options.watch;
+            for (var key in watchesFn) {
+                if (!key.startsWith('$') && !key.startsWith('_'))
+                    watch(this[key], watchesFn[key]);
             }
         };
-        obj.toString = function () {
-            return this.value;
-        };
-        return obj;
-    }
+        return DdBind;
+    }());
 
     function createApp(options) {
         return new DdBind(options);

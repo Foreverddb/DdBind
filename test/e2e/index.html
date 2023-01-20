@@ -7,34 +7,54 @@
 </head>
 <body>
 <div id="app">
-    <!-- 测试一下注释 -->
-    <h1>
-        testtt &lt;&#60;
-        <div>ttttrt</div>
-    </h1>
-    <input d-model="foo" type="text" />
-    <div @click="change()" id="fuck">ss{{ foo + com }}sb {{ re.text }}</div>
+    <div>
+        <!-- 测试一下注释 -->
+        <h1>
+            ff
+            <div>ttttrt</div>
+        </h1>
+        duib
+        <input d-model="foo" type="text" />
+        <div @click="change" id="test">{{ foo }} {{ re.text }} {{ com }}</div>
+    </div>
 </div>
 <script>
 
     let app = DdBind.createApp({
-        setup() {
-            const foo = DdBind.ref('[dss]')
-            const bar = DdBind.ref('[shit ss]')
-            const re = DdBind.reactive({text: 'aasdsan'})
-            const com = DdBind.computed(() => {
-                return foo.value.repeat(3)
-            })
-            const change = () => {
-                foo.value = Math.random().toString()
-            }
+        data() {
             return {
-                com,
-                foo,
-                change,
+                foo: '[dsdhba]'
+            }
+        },
+        setup() {
+            const bar = DdBind.ref('')
+            const re = DdBind.reactive({text: 'aasdsan'})
+
+            return {
                 bar,
                 re
             }
+        },
+        computed: {
+          com() {
+              return '..' + this.foo.value + 'shit'
+          }
+        },
+        methods: {
+          change() {
+              this.foo.value = 'shifins'
+          }
+        },
+        watch: {
+          foo(newValue) {
+              console.log(newValue)
+          }
+        },
+        onMounted() {
+            console.log('mounted')
+            setTimeout(() => {
+                this.foo.value = 'fuckme'
+            }, 1000)
         }
     })
     app.mount('#app')

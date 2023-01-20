@@ -9,6 +9,7 @@ import {
     ReturnStatementNode,
     TemplateAST
 } from "types/compiler";
+import {warn} from "utils/debug";
 
 /**
  * 创建StringLiteral型的JsAST
@@ -234,7 +235,13 @@ export function transformRoot(node: TemplateAST): () => void {
             return
         }
 
-        const vnodeJSAST: JavascriptNode = node.children[0].jsNode
+        const vnodeJSAST: JavascriptNode = node.children[0].jsNode // 根节点只能有一个子元素
+
+        if (__DEV__ && node.children.length > 1) {
+            warn(`the template requires only one child node, detected ${node.children.length}. 
+            The DdBind parser will only parse the first one`, null)
+        }
+
         node.jsNode = {
             type: 'FunctionDeclaration',
             id: {type: 'Identifier', name: 'render'},

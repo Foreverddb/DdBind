@@ -90,6 +90,8 @@ export function mountElement(vnode: VNode, container: Container) {
         vnode.children.forEach(child => {
             patch(null, child, el)
         })
+    } else {
+        patch(null, vnode.children, el)
     }
     // 为dom挂载attr
     if (vnode.props) {

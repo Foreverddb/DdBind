@@ -2,7 +2,6 @@ import {VNode} from "types/renderer";
 import {CommentVnodeSymbol, TextVnodeSymbol, VnodeUtil} from "renderer/vnode";
 
 export function createVnode(type: string, props: any, children: string | Array<| VNode>): VNode {
-    console.log(props)
     if (type === 'comment') {
         return VnodeUtil.builder().setType(CommentVnodeSymbol).setChildren(children).build()
     } else {

@@ -92,7 +92,7 @@ function genCallExpression(node: CallExpressionNode, context: GeneratorContext) 
  * @param context 上下文对象
  */
 function genNodeList(nodes: Array<JavascriptNode>, context: GeneratorContext) {
-    const {push, indent, deIndent} = context
+    const {push} = context
     for (let i = 0; i < nodes.length; i++) {
         const node: JavascriptNode = nodes[i]
         genNode(node, context)
@@ -170,4 +170,14 @@ function genObjectExpression(node: ArgumentNode, context: GeneratorContext) {
 
     deIndent()
     push('}')
+}
+
+/**
+ * 生成指令表达式代码
+ * @param node 目标节点
+ * @param context 上下文对象
+ */
+function genDirectives(node: ArgumentNode, context: GeneratorContext) {
+    const {push, indent, deIndent} = context
+
 }

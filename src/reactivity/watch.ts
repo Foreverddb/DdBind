@@ -37,8 +37,6 @@ export function watch<T>(target: object | (() => any), callback: WatchCallback<T
     // 若为用户定义的getter则直接使用
     if (typeof target === 'function') {
         getter = target
-    } else if (target instanceof Ref) {
-        getter = () => traverseRef(target.value)
     } else {
         getter = () => traverseRef(target)
     }
@@ -52,7 +50,8 @@ export function watch<T>(target: object | (() => any), callback: WatchCallback<T
     const effectFn = effect(getter, {
         isLazy: true,
         scheduler: () => {
-            newValue = {...effectFn()} // 防止与oldValue引用同一对象
+            let data = effectFn()
+            newValue = (data instanceof Ref) ? data.value : {...data} // 防止与oldValue引用同一对象
 
             if (onExpiredHandler) onExpiredHandler() // 若注册了过期函数则在回调前执行
 
