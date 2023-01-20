@@ -21,7 +21,7 @@ import {
     HTML_TAG_PROP_VALUE_WITHOUT_QUOTE
 } from "compiler/parser/regexp";
 
-import {CCR_REPLACEMENTS, decodeMap, decodeMapKeyMaxLen} from "compiler/parser/references";
+import {CCR_REPLACEMENTS, decodeMap, decodeMapKeyMaxLen, selfClosingTags} from "compiler/parser/references";
 
 
 /**
@@ -177,13 +177,18 @@ function parseTag(context: ParserContext, type: string = 'start'): TemplateAST {
         : HTML_END_TAG_REG.exec(context.source)
 
     const tag = match[1] // 匹配到的标签名称
+
     advanceBy(match[0].length) // 消费该标签内容
     advanceSpaces()
 
     const props: Array<DirectiveNode | AttributeNode | EventNode> = parseAttributes(context) // 解析标签属性
 
-    const isSelfClosing = context.source.startsWith('/>')
-    advanceBy(isSelfClosing ? 2 : 1) // 自闭合标签则消费'/>'否则消费'>'
+    const isSelfClosing = selfClosingTags.includes(tag)
+    advanceBy(
+        isSelfClosing
+            ? (context.source.startsWith('/>') ? 2 : 1)
+            : 1
+    ) // 自闭合标签则根据情况消费'>'或'/>'
 
     return {
         type: 'Element',

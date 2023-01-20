@@ -35,6 +35,11 @@ export class Ref<T = any> implements RefObj<T>{
 
 }
 
+// 覆盖toString方法，使其在文本插值时可以自动解包装
+Ref.prototype.toString = function () {
+    return this.value.toString()
+}
+
 /**
  * 创建一个可代理原始值的响应式对象
  * @param value 响应式值,

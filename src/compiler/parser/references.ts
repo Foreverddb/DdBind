@@ -1,3 +1,20 @@
+export const selfClosingTags = [
+    'meta',
+    'base',
+    'br',
+    'hr',
+    'img',
+    'input',
+    'col',
+    'frame',
+    'link',
+    'area',
+    'param',
+    'embed',
+    'keygen',
+    'source'
+]
+
 export const decodeMapKeyMaxLen = 31
 
 export const CCR_REPLACEMENTS = {

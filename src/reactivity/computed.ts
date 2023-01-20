@@ -1,10 +1,11 @@
 import {effect, EffectFunction, track, trigger} from "core/index";
 import {RefObj} from "types/reactivity";
+import {Ref} from "reactivity/ref";
 
 /**
  * 计算属性对象的value应为只读，其只能通过getter的返回值获取
  */
-interface Computed<T = any> extends RefObj<T>{
+class Computed<T = any> implements RefObj<T>{
     readonly value: T
 }
 
@@ -34,6 +35,10 @@ export function computed<T>(getter: EffectFunction<T>): Computed<T> {
             track(obj, 'value') // 添加依赖的响应式对象到计算属性的依赖
             return buffer
         }
+    }
+
+    obj.toString = function () {
+        return this.value
     }
 
     return obj

@@ -196,7 +196,11 @@ export function transformElement(node: TemplateAST): () => void {
                     events.push(
                         createPairNode(
                             createStringLiteral(prop.name),
-                            createExpressionLiteral('(event) => {' + prop.exp.content + '}')
+                            createExpressionLiteral(
+                                /\([a-z0-9, ]*\)/i.test(prop.exp.content)
+                                    ? `() => { ${prop.exp.content} }`
+                                    : prop.exp.content
+                            )
                         )
                     )
                 } else if (prop.type === 'Attribute') {

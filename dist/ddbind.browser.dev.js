@@ -31,6 +31,22 @@
     var HTML_REFERENCE_HEX_REG = /^&#x([0-9a-f]+);?/i;
     var HTML_REFERENCE_NUMBER_REG = /^&#([0-9]+);?/;
 
+    var selfClosingTags = [
+        'meta',
+        'base',
+        'br',
+        'hr',
+        'img',
+        'input',
+        'col',
+        'frame',
+        'link',
+        'area',
+        'param',
+        'embed',
+        'keygen',
+        'source'
+    ];
     var decodeMapKeyMaxLen = 31;
     var CCR_REPLACEMENTS = {
         0x80: 0x20ac,
@@ -2345,8 +2361,10 @@
         advanceBy(match[0].length); // 消费该标签内容
         advanceSpaces();
         var props = parseAttributes(context); // 解析标签属性
-        var isSelfClosing = context.source.startsWith('/>');
-        advanceBy(isSelfClosing ? 2 : 1); // 自闭合标签则消费'/>'否则消费'>'
+        var isSelfClosing = selfClosingTags.includes(tag);
+        advanceBy(isSelfClosing
+            ? (context.source.startsWith('/>') ? 2 : 1)
+            : 1); // 自闭合标签则根据情况消费'>'或'/>'
         return {
             type: 'Element',
             tag: tag,
@@ -2787,7 +2805,9 @@
                         directives_1.push(createPairNode(createStringLiteral(prop.name), createExpressionLiteral(prop.exp.content)));
                     }
                     else if (prop.type === 'Event') {
-                        events_1.push(createPairNode(createStringLiteral(prop.name), createExpressionLiteral('(event) => {' + prop.exp.content + '}')));
+                        events_1.push(createPairNode(createStringLiteral(prop.name), createExpressionLiteral(/\([a-z0-9, ]*\)/i.test(prop.exp.content)
+                            ? "() => { ".concat(prop.exp.content, " }")
+                            : prop.exp.content)));
                     }
                     else if (prop.type === 'Attribute') {
                         attrs_1.push(createPairNode(createStringLiteral(prop.name), createStringLiteral(prop.value)));
@@ -3070,6 +3090,7 @@
     }());
 
     function createVnode(type, props, children) {
+        console.log(props);
         if (type === 'comment') {
             return VnodeUtil.builder().setType(CommentVnodeSymbol).setChildren(children).build();
         }
@@ -3085,10 +3106,7 @@
                     propsObject[propKey] = props.on[eventName];
                 }
             }
-            if (props.directives) {
-                for (var directiveName in props.directives) {
-                }
-            }
+            // 设置属性值
             builder.setProps(propsObject);
             return builder.build();
         }
@@ -3645,6 +3663,10 @@
         });
         return Ref;
     }());
+    // 覆盖toString方法，使其在文本插值时可以自动解包装
+    Ref.prototype.toString = function () {
+        return this.value.toString();
+    };
     /**
      * 创建一个可代理原始值的响应式对象
      * @param value 响应式值,
@@ -3754,6 +3776,9 @@
                 track(obj, 'value'); // 添加依赖的响应式对象到计算属性的依赖
                 return buffer;
             }
+        };
+        obj.toString = function () {
+            return this.value;
         };
         return obj;
     }

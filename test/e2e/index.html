@@ -12,9 +12,8 @@
         testtt &lt;&#60;
         <div>ttttrt</div>
     </h1>
-    <div >ddassad</div>
-    <!-- test -->
-    <div @click="change()" id="fuck">ss{{ foo.value + com.value }}sb</div>
+    <input d-model="foo" type="text" />
+    <div @click="change()" id="fuck">ss{{ foo + com }}sb {{ re.text }}</div>
 </div>
 <script>
 
@@ -22,17 +21,19 @@
         setup() {
             const foo = DdBind.ref('[dss]')
             const bar = DdBind.ref('[shit ss]')
+            const re = DdBind.reactive({text: 'aasdsan'})
             const com = DdBind.computed(() => {
                 return foo.value.repeat(3)
             })
             const change = () => {
-                foo.value = 'fnian'
+                foo.value = Math.random().toString()
             }
             return {
                 com,
                 foo,
                 change,
-                bar
+                bar,
+                re
             }
         }
     })

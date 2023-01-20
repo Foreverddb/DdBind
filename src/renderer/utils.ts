@@ -2,6 +2,7 @@ import {VNode} from "types/renderer";
 import {CommentVnodeSymbol, TextVnodeSymbol, VnodeUtil} from "renderer/vnode";
 
 export function createVnode(type: string, props: any, children: string | Array<| VNode>): VNode {
+    console.log(props)
     if (type === 'comment') {
         return VnodeUtil.builder().setType(CommentVnodeSymbol).setChildren(children).build()
     } else {
@@ -16,12 +17,8 @@ export function createVnode(type: string, props: any, children: string | Array<|
                 propsObject[propKey] = props.on[eventName]
             }
         }
-        if (props.directives) {
-            for (const directiveName in props.directives) {
 
-            }
-        }
-
+        // 设置属性值
         builder.setProps(propsObject)
         return builder.build()
     }
