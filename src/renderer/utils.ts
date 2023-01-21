@@ -14,17 +14,8 @@ export function createVnode(type: string, props: any, children: string | Array<|
         const builder = VnodeUtil.builder().setType(type).setChildren(children)
         const propsObject: object = {} // 空对象用以暂存prop数据
 
-        // attrs的内容可以直接添加
-        if (props.attrs) {
-            Object.assign(propsObject, props.attrs)
-        }
-        // 将事件转化为prop名的形式
-        if (props.on) {
-            for (const eventName in props.on) {
-                const propKey = 'on' + eventName[0].toUpperCase() + eventName.slice(1, eventName.length) // 构造为以on开头的prop名
-                propsObject[propKey] = props.on[eventName]
-            }
-        }
+        // 处理prop数据
+        patchProps(props, propsObject)
 
         // 根据表达式解析并设置vnode的渲染flag
         if (propsObject['_if_'] !== undefined && !propsObject['_if_']) {
@@ -33,21 +24,10 @@ export function createVnode(type: string, props: any, children: string | Array<|
             builder.setIf(true)
         }
 
-        // 解析d-show指令表达式内容并设置display样式
-        let showDisplay = propsObject['_show_'] !== undefined && !propsObject['_show_'] ? 'none' : ''
-        if (Array.isArray(propsObject['_style_'])) {
-            propsObject['_style_'].push({display: showDisplay})
-        } else if (propsObject['_style_'] && typeof propsObject['style'] === 'object'){
-            propsObject['_style_']['display'] = showDisplay
-        } else {
-            propsObject['_style_'] = {display: showDisplay}
-        }
-
         // 设置属性值
         builder.setProps(propsObject)
         return builder.build()
     }
-
 }
 
 /**
@@ -68,4 +48,33 @@ export function stringVal(value: any): string {
         : typeof value === 'object'
             ? value.toString()
             : String(value)
+}
+
+/**
+ * 将根据jsAST转换得到的prop对象解析为vnode可以处理的格式
+ * @param props 原始props
+ * @param target 转换得到的目标对象
+ */
+function patchProps(props: any, target: object) {
+// attrs的内容可以直接添加
+    if (props.attrs) {
+        Object.assign(target, props.attrs)
+    }
+    // 将事件转化为prop名的形式
+    if (props.on) {
+        for (const eventName in props.on) {
+            const propKey = 'on' + eventName[0].toUpperCase() + eventName.slice(1, eventName.length) // 构造为以on开头的prop名
+            target[propKey] = props.on[eventName]
+        }
+    }
+
+    // 解析d-show指令表达式内容并设置display样式
+    let showDisplay = target['_show_'] !== undefined && !target['_show_'] ? 'none' : ''
+    if (Array.isArray(target['_style_'])) {
+        target['_style_'].push({display: showDisplay})
+    } else if (target['_style_'] && typeof target['style'] === 'object'){
+        target['_style_']['display'] = showDisplay
+    } else {
+        target['_style_'] = {display: showDisplay}
+    }
 }

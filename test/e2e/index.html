@@ -29,7 +29,7 @@
         </button>
 
         <p>clicked {{ count }} times </p>
-        <button style="color: red" d-show="count < 3" @click="countAdd">
+        <button d-show="count < 3" @click="countAdd">
             click me to increase (I will hide when count is greater than 3)
         </button>
         <button @click="count --">
