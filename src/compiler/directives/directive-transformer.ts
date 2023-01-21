@@ -46,8 +46,8 @@ function genEventExpression(directive: PropNode, context: DirectiveTransformerCo
             // show指令即简单通过style来标识是否展示此节点
             context.attrs.push(
                 createKeyValueObjectNode(
-                    'style',
-                    `(${directive.exp.content}) ? {display: ''} : {display: 'none'}`,
+                    '_show_',
+                    `${directive.exp.content}`,
                     'Expression'
                 )
             )

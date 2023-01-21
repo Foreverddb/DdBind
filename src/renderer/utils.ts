@@ -32,6 +32,17 @@ export function createVnode(type: string, props: any, children: string | Array<|
         } else {
             builder.setIf(true)
         }
+
+        // 解析d-show指令表达式内容并设置display样式
+        let showDisplay = propsObject['_show_'] !== undefined && !propsObject['_show_'] ? 'none' : ''
+        if (Array.isArray(propsObject['_style_'])) {
+            propsObject['_style_'].push({display: showDisplay})
+        } else if (propsObject['_style_'] && typeof propsObject['style'] === 'object'){
+            propsObject['_style_']['display'] = showDisplay
+        } else {
+            propsObject['_style_'] = {display: showDisplay}
+        }
+
         // 设置属性值
         builder.setProps(propsObject)
         return builder.build()

@@ -2311,7 +2311,6 @@
             var prop 
             // 根据propName来进行不同类型属性的处理
             = void 0;
-            // 根据propName来进行不同类型属性的处理
             if (propName.startsWith('@') || propName.startsWith('d-on:') || propName.startsWith('on')) {
                 // 处理绑定事件
                 prop = {
@@ -2882,7 +2881,7 @@
                 break;
             case 'd-show':
                 // show指令即简单通过style来标识是否展示此节点
-                context.attrs.push(createKeyValueObjectNode('style', "(".concat(directive.exp.content, ") ? {display: ''} : {display: 'none'}"), 'Expression'));
+                context.attrs.push(createKeyValueObjectNode('_show_', "".concat(directive.exp.content), 'Expression'));
                 break;
             case 'd-if':
                 // if指令通过在vnode上做标记来决定是否渲染此节点
@@ -3232,6 +3231,17 @@
             }
             else {
                 builder.setIf(true);
+            }
+            // 解析d-show指令表达式内容并设置display样式
+            var showDisplay = propsObject['_show_'] !== undefined && !propsObject['_show_'] ? 'none' : '';
+            if (Array.isArray(propsObject['_style_'])) {
+                propsObject['_style_'].push({ display: showDisplay });
+            }
+            else if (propsObject['_style_'] && typeof propsObject['style'] === 'object') {
+                propsObject['_style_']['display'] = showDisplay;
+            }
+            else {
+                propsObject['_style_'] = { display: showDisplay };
             }
             // 设置属性值
             builder.setProps(propsObject);

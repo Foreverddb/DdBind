@@ -134,6 +134,9 @@ function parseAttributes(context: ParserContext): Array<PropNode> {
 
         let prop: PropNode
         // 根据propName来进行不同类型属性的处理
+        if (propName === '') {
+
+        }
         if (propName.startsWith('@') || propName.startsWith('d-on:') || propName.startsWith('on')) {
             // 处理绑定事件
             prop = {
