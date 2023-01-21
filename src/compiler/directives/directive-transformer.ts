@@ -17,7 +17,7 @@ export function transformEventDirectiveExpression(directives: Array<PropNode>, c
 }
 
 /**
- * 根据指令内容
+ * 根据指令内容生成JsAST
  * @param directive 目标指令节点
  * @param context 上下文对象
  */
@@ -59,6 +59,15 @@ function genEventExpression(directive: PropNode, context: DirectiveTransformerCo
                     '_if_',
                     directive.exp.content,
                     'Expression'
+                )
+            )
+            break
+        case 'd-html':
+            context.attrs.push(
+                createKeyValueObjectNode(
+                    'innerHTML',
+                    directive.exp.content,
+                    'StringLiteral'
                 )
             )
             break

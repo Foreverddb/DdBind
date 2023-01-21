@@ -56,7 +56,7 @@ export function stringVal(value: any): string {
  * @param target 转换得到的目标对象
  */
 function patchProps(props: any, target: object) {
-// attrs的内容可以直接添加
+    // attrs的内容可以直接添加
     if (props.attrs) {
         Object.assign(target, props.attrs)
     }

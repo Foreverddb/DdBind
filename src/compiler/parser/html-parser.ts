@@ -19,6 +19,7 @@ import {
 } from "compiler/parser/regexp";
 
 import {CCR_REPLACEMENTS, decodeMap, decodeMapKeyMaxLen, selfClosingTags} from "compiler/parser/references";
+import {parseDirectives} from "compiler/directives";
 
 
 /**
@@ -132,66 +133,8 @@ function parseAttributes(context: ParserContext): Array<PropNode> {
 
         advanceSpaces()
 
-        let prop: PropNode
-        // 根据propName来进行不同类型属性的处理
-        if (propName === '') {
-
-        }
-        if (propName.startsWith('@') || propName.startsWith('d-on:') || propName.startsWith('on')) {
-            // 处理绑定事件
-            prop = {
-                type: 'Event',
-                // 事件名
-                name: propName.startsWith('@')
-                    ? propName.slice(1, propName.length)
-                    : (propName.startsWith('d-on:')
-                        ? propName.slice(5, propName.length)
-                        : propName.slice(2, propName.length)),
-                exp: {
-                    type: 'Expression',
-                    content: propValue
-                }
-            } as PropNode
-        } else if (propName.startsWith(':') || propName.startsWith('d-bind:')) {
-            const attrName = propName.startsWith(':')
-                ? propName.slice(1, propName.length)
-                : propName.slice(7, propName.length)
-            // 处理绑定属性
-            prop = {
-                type: 'ReactiveProp',
-                name: attrName,
-                exp: {
-                    type: 'Expression',
-                    content: propValue
-                }
-            } as PropNode
-            // style和class动态属性不应覆盖而应叠加
-            if (attrName === 'style' || attrName === 'class') {
-                prop.name = `_${attrName}_`
-            }
-        } else if (propName.startsWith('d-')) {
-            // 处理其他指令
-            prop = {
-                type: 'Directive',
-                name: propName,
-                exp: {
-                    type: 'Expression',
-                    content: propValue
-                }
-            } as PropNode
-        } else {
-            // 普通的HTML attr
-            prop = {
-                type: 'Attribute',
-                name: propName,
-                value: propValue
-            } as PropNode
-        }
-
-        // style和class属性需要单独处理
-        // if (/[]/.test(propName) || propName.includes('class')) {
-        //     prop = parseStyleOrClass(propName, propValue)
-        // }
+        // 处理prop类型与指令
+        let prop: PropNode = parseDirectives(propName, propValue)
 
         props.push(prop)
     }
@@ -376,7 +319,7 @@ function decodeHTMLText(rawText: string, asAttr: boolean = false): string {
 
         if (head[0] === '&') {
             let name: string = ''
-            let value: string
+            let value: string = undefined
 
             if (ALPHABET_OR_NUMBER_REG.test(rawText[1])) {
                 // 依次从最长到最短查表寻找匹配的引用字符名称

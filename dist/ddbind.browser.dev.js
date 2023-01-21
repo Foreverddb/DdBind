@@ -2206,6 +2206,293 @@
     };
 
     /**
+     * 对任意JsAST节点进行生成代码操作
+     * @param node
+     * @param context
+     */
+    function genNode(node, context) {
+        switch (node.type) {
+            case "FunctionDeclaration":
+                genFunctionDeclaration(node, context);
+                break;
+            case "ReturnStatement":
+                genReturnStatement(node, context);
+                break;
+            case "CallExpression":
+                genCallExpression(node, context);
+                break;
+            case "StringLiteral":
+                genStringLiteral(node, context);
+                break;
+            case "ArrayExpression":
+                genArrayExpression(node, context);
+                break;
+            case "ExpressionLiteral":
+                genExpressionLiteral(node, context);
+                break;
+            case "KeyValuePair":
+                genKeyValuePair(node, context);
+                break;
+            case "ObjectExpression":
+                genObjectExpression(node, context);
+                break;
+        }
+    }
+    /**
+     * 生成函数型代码
+     * @param node 目标节点
+     * @param context 上下文对象
+     */
+    function genFunctionDeclaration(node, context) {
+        // 从 context 对象中取出工具函数
+        var push = context.push, indent = context.indent, deIndent = context.deIndent;
+        push("with(this) ");
+        push("{");
+        indent();
+        // 函数体
+        node.body.forEach(function (n) { return genNode(n, context); });
+        deIndent();
+        push("}");
+    }
+    /**
+     * 生成返回值代码
+     * @param node 目标节点
+     * @param context 上下文对象
+     */
+    function genReturnStatement(node, context) {
+        var push = context.push;
+        push("return ");
+        genNode(node.return, context);
+    }
+    /**
+     * 生成函数调用表达式代码
+     * @param node 目标节点
+     * @param context 上下文对象
+     */
+    function genCallExpression(node, context) {
+        var push = context.push;
+        var callee = node.callee, args = node.arguments;
+        push("".concat(callee.name, "("));
+        genNodeList(args, context);
+        push(")");
+    }
+    /**
+     * 生成参数列表
+     * @param nodes 节点数组
+     * @param context 上下文对象
+     */
+    function genNodeList(nodes, context) {
+        var push = context.push;
+        for (var i = 0; i < nodes.length; i++) {
+            var node = nodes[i];
+            genNode(node, context);
+            if (i < nodes.length - 1) {
+                push(', ');
+            }
+        }
+    }
+    /**
+     * 生成字符串代码
+     * @param node 目标节点
+     * @param context 上下文对象
+     */
+    function genStringLiteral(node, context) {
+        var push = context.push;
+        // 去除换行符以免影响代码运行
+        node.value = node.value.replaceAll(/\n/g, ' ');
+        // 对于字符串字面量，只需要追加与 node.value 对应的字符串即可
+        push("'".concat(node.value, "'"));
+    }
+    /**
+     * 生成数组表达式代码
+     * @param node 目标数组节点
+     * @param context 上下文对象
+     */
+    function genArrayExpression(node, context) {
+        var push = context.push, indent = context.indent, deIndent = context.deIndent;
+        push('[');
+        indent();
+        genNodeList(node.elements, context);
+        deIndent();
+        push(']');
+    }
+    /**
+     * 生成js表达式代码
+     * @param node 目标节点
+     * @param context 上下文对象
+     */
+    function genExpressionLiteral(node, context) {
+        var push = context.push;
+        push("(".concat(node.value, ")"));
+    }
+    /**
+     * 生成键值对表达式代码
+     * @param node 目标节点
+     * @param context 上下文对象
+     */
+    function genKeyValuePair(node, context) {
+        var push = context.push;
+        genNode(node.first, context);
+        push(': ');
+        genNode(node.last, context);
+    }
+    /**
+     * 生成对象表达式代码
+     * @param node 目标节点
+     * @param context 上下文对象
+     */
+    function genObjectExpression(node, context) {
+        var push = context.push, indent = context.indent, deIndent = context.deIndent;
+        push('{');
+        indent();
+        genNodeList(node.elements, context);
+        deIndent();
+        push('}');
+    }
+
+    function genGuard(condition) {
+        return "if (".concat(condition, ") return; ");
+    }
+    var codeGuards = {
+        'd-model': genGuard('$event.target.composing')
+    };
+
+    /**
+     * 根据jsAST生成渲染函数代码
+     * @param jsAST 目标jsAST
+     */
+    function generate(jsAST) {
+        var context = {
+            code: '',
+            currentIndent: 0,
+            push: function (code) {
+                context.code += code;
+            },
+            newLine: function () {
+                // 生产环境下无需进行格式化与美化代码操作
+                {
+                    context.code += '\n' + '  '.repeat(context.currentIndent);
+                }
+            },
+            indent: function () {
+                {
+                    context.currentIndent++;
+                    context.newLine();
+                }
+            },
+            deIndent: function () {
+                {
+                    context.currentIndent--;
+                    context.newLine();
+                }
+            }
+        };
+        genNode(jsAST, context);
+        return context.code;
+    }
+
+    /**
+     * 针对directives指令部分转换代码表达式
+     * @param directives 指令节点
+     * @param context 上下文对象
+     */
+    function transformEventDirectiveExpression(directives, context) {
+        // 过滤节点数组
+        directives.filter(function (x) { return x.type === 'Directive'; }).forEach(function (directive) {
+            genEventExpression(directive, context);
+        });
+    }
+    /**
+     * 根据指令内容生成JsAST
+     * @param directive 目标指令节点
+     * @param context 上下文对象
+     */
+    function genEventExpression(directive, context) {
+        var createKeyValueObjectNode = context.createKeyValueObjectNode;
+        switch (directive.name) {
+            case 'd-model':
+                // model指令即通过input事件双向绑定ref变量
+                context.events.push(createKeyValueObjectNode('input', "($event) => { ".concat(codeGuards[directive.name], " (").concat(directive.exp.content, ") = $event.target.value }"), 'Expression'));
+                context.attrs.push(createKeyValueObjectNode('value', "(".concat(directive.exp.content, ")"), 'Expression'));
+                break;
+            case 'd-show':
+                // show指令即简单通过style来标识是否展示此节点
+                context.attrs.push(createKeyValueObjectNode('_show_', "".concat(directive.exp.content), 'Expression'));
+                break;
+            case 'd-if':
+                // if指令通过在vnode上做标记来决定是否渲染此节点
+                context.attrs.push(createKeyValueObjectNode('_if_', directive.exp.content, 'Expression'));
+                break;
+            case 'd-html':
+                context.attrs.push(createKeyValueObjectNode('innerHTML', directive.exp.content, 'StringLiteral'));
+                break;
+        }
+    }
+
+    /**
+     * 解析指令属性并返回解析结果作为目标节点对象
+     * @param propName 属性名
+     * @param propValue 属性值
+     */
+    function parseDirectives(propName, propValue) {
+        var prop;
+        if (propName.startsWith('@') || propName.startsWith('d-on:') || propName.startsWith('on')) {
+            // 处理绑定事件
+            prop = {
+                type: 'Event',
+                // 事件名
+                name: propName.startsWith('@')
+                    ? propName.slice(1, propName.length)
+                    : (propName.startsWith('d-on:')
+                        ? propName.slice(5, propName.length)
+                        : propName.slice(2, propName.length)),
+                exp: {
+                    type: 'Expression',
+                    content: propValue
+                }
+            };
+        }
+        else if (propName.startsWith(':') || propName.startsWith('d-bind:')) {
+            var attrName = propName.startsWith(':')
+                ? propName.slice(1, propName.length)
+                : propName.slice(7, propName.length);
+            // 处理绑定属性
+            prop = {
+                type: 'ReactiveProp',
+                name: attrName,
+                exp: {
+                    type: 'Expression',
+                    content: propValue
+                }
+            };
+            // style和class动态属性不应覆盖而应叠加
+            if (attrName === 'style' || attrName === 'class') {
+                prop.name = "_".concat(attrName, "_");
+            }
+        }
+        else if (propName.startsWith('d-')) {
+            // 处理其他指令
+            prop = {
+                type: 'Directive',
+                name: propName,
+                exp: {
+                    type: 'Expression',
+                    content: propValue
+                }
+            };
+        }
+        else {
+            // 普通的HTML attr
+            prop = {
+                type: 'Attribute',
+                name: propName,
+                value: propValue
+            };
+        }
+        return prop;
+    }
+
+    /**
      * 解析某节点的子节点
      * @param context 上下文对象
      * @param parenStack 父节点栈
@@ -2308,66 +2595,8 @@
                 });
             }
             advanceSpaces();
-            var prop 
-            // 根据propName来进行不同类型属性的处理
-            = void 0;
-            if (propName.startsWith('@') || propName.startsWith('d-on:') || propName.startsWith('on')) {
-                // 处理绑定事件
-                prop = {
-                    type: 'Event',
-                    // 事件名
-                    name: propName.startsWith('@')
-                        ? propName.slice(1, propName.length)
-                        : (propName.startsWith('d-on:')
-                            ? propName.slice(5, propName.length)
-                            : propName.slice(2, propName.length)),
-                    exp: {
-                        type: 'Expression',
-                        content: propValue
-                    }
-                };
-            }
-            else if (propName.startsWith(':') || propName.startsWith('d-bind:')) {
-                var attrName = propName.startsWith(':')
-                    ? propName.slice(1, propName.length)
-                    : propName.slice(7, propName.length);
-                // 处理绑定属性
-                prop = {
-                    type: 'ReactiveProp',
-                    name: attrName,
-                    exp: {
-                        type: 'Expression',
-                        content: propValue
-                    }
-                };
-                // style和class动态属性不应覆盖而应叠加
-                if (attrName === 'style' || attrName === 'class') {
-                    prop.name = "_".concat(attrName, "_");
-                }
-            }
-            else if (propName.startsWith('d-')) {
-                // 处理其他指令
-                prop = {
-                    type: 'Directive',
-                    name: propName,
-                    exp: {
-                        type: 'Expression',
-                        content: propValue
-                    }
-                };
-            }
-            else {
-                // 普通的HTML attr
-                prop = {
-                    type: 'Attribute',
-                    name: propName,
-                    value: propValue
-                };
-            }
-            // style和class属性需要单独处理
-            // if (/[]/.test(propName) || propName.includes('class')) {
-            //     prop = parseStyleOrClass(propName, propValue)
-            // }
+            // 处理prop类型与指令
+            var prop = parseDirectives(propName, propValue);
             props.push(prop);
         }
         return props;
@@ -2666,227 +2895,6 @@
         var i = exitFns.length;
         while (i--) {
             exitFns[i]();
-        }
-    }
-
-    /**
-     * 对任意JsAST节点进行生成代码操作
-     * @param node
-     * @param context
-     */
-    function genNode(node, context) {
-        switch (node.type) {
-            case "FunctionDeclaration":
-                genFunctionDeclaration(node, context);
-                break;
-            case "ReturnStatement":
-                genReturnStatement(node, context);
-                break;
-            case "CallExpression":
-                genCallExpression(node, context);
-                break;
-            case "StringLiteral":
-                genStringLiteral(node, context);
-                break;
-            case "ArrayExpression":
-                genArrayExpression(node, context);
-                break;
-            case "ExpressionLiteral":
-                genExpressionLiteral(node, context);
-                break;
-            case "KeyValuePair":
-                genKeyValuePair(node, context);
-                break;
-            case "ObjectExpression":
-                genObjectExpression(node, context);
-                break;
-        }
-    }
-    /**
-     * 生成函数型代码
-     * @param node 目标节点
-     * @param context 上下文对象
-     */
-    function genFunctionDeclaration(node, context) {
-        // 从 context 对象中取出工具函数
-        var push = context.push, indent = context.indent, deIndent = context.deIndent;
-        push("with(this) ");
-        push("{");
-        indent();
-        // 函数体
-        node.body.forEach(function (n) { return genNode(n, context); });
-        deIndent();
-        push("}");
-    }
-    /**
-     * 生成返回值代码
-     * @param node 目标节点
-     * @param context 上下文对象
-     */
-    function genReturnStatement(node, context) {
-        var push = context.push;
-        push("return ");
-        genNode(node.return, context);
-    }
-    /**
-     * 生成函数调用表达式代码
-     * @param node 目标节点
-     * @param context 上下文对象
-     */
-    function genCallExpression(node, context) {
-        var push = context.push;
-        var callee = node.callee, args = node.arguments;
-        push("".concat(callee.name, "("));
-        genNodeList(args, context);
-        push(")");
-    }
-    /**
-     * 生成参数列表
-     * @param nodes 节点数组
-     * @param context 上下文对象
-     */
-    function genNodeList(nodes, context) {
-        var push = context.push;
-        for (var i = 0; i < nodes.length; i++) {
-            var node = nodes[i];
-            genNode(node, context);
-            if (i < nodes.length - 1) {
-                push(', ');
-            }
-        }
-    }
-    /**
-     * 生成字符串代码
-     * @param node 目标节点
-     * @param context 上下文对象
-     */
-    function genStringLiteral(node, context) {
-        var push = context.push;
-        // 去除换行符以免影响代码运行
-        node.value = node.value.replaceAll(/\n/g, ' ');
-        // 对于字符串字面量，只需要追加与 node.value 对应的字符串即可
-        push("'".concat(node.value, "'"));
-    }
-    /**
-     * 生成数组表达式代码
-     * @param node 目标数组节点
-     * @param context 上下文对象
-     */
-    function genArrayExpression(node, context) {
-        var push = context.push, indent = context.indent, deIndent = context.deIndent;
-        push('[');
-        indent();
-        genNodeList(node.elements, context);
-        deIndent();
-        push(']');
-    }
-    /**
-     * 生成js表达式代码
-     * @param node 目标节点
-     * @param context 上下文对象
-     */
-    function genExpressionLiteral(node, context) {
-        var push = context.push;
-        push("(".concat(node.value, ")"));
-    }
-    /**
-     * 生成键值对表达式代码
-     * @param node 目标节点
-     * @param context 上下文对象
-     */
-    function genKeyValuePair(node, context) {
-        var push = context.push;
-        genNode(node.first, context);
-        push(': ');
-        genNode(node.last, context);
-    }
-    /**
-     * 生成对象表达式代码
-     * @param node 目标节点
-     * @param context 上下文对象
-     */
-    function genObjectExpression(node, context) {
-        var push = context.push, indent = context.indent, deIndent = context.deIndent;
-        push('{');
-        indent();
-        genNodeList(node.elements, context);
-        deIndent();
-        push('}');
-    }
-
-    function genGuard(condition) {
-        return "if (".concat(condition, ") return; ");
-    }
-    var codeGuards = {
-        'd-model': genGuard('$event.target.composing')
-    };
-
-    /**
-     * 根据jsAST生成渲染函数代码
-     * @param jsAST 目标jsAST
-     */
-    function generate(jsAST) {
-        var context = {
-            code: '',
-            currentIndent: 0,
-            push: function (code) {
-                context.code += code;
-            },
-            newLine: function () {
-                // 生产环境下无需进行格式化与美化代码操作
-                {
-                    context.code += '\n' + '  '.repeat(context.currentIndent);
-                }
-            },
-            indent: function () {
-                {
-                    context.currentIndent++;
-                    context.newLine();
-                }
-            },
-            deIndent: function () {
-                {
-                    context.currentIndent--;
-                    context.newLine();
-                }
-            }
-        };
-        genNode(jsAST, context);
-        return context.code;
-    }
-
-    /**
-     * 针对directives指令部分转换代码表达式
-     * @param directives 指令节点
-     * @param context 上下文对象
-     */
-    function transformEventDirectiveExpression(directives, context) {
-        // 过滤节点数组
-        directives.filter(function (x) { return x.type === 'Directive'; }).forEach(function (directive) {
-            genEventExpression(directive, context);
-        });
-    }
-    /**
-     * 根据指令内容
-     * @param directive 目标指令节点
-     * @param context 上下文对象
-     */
-    function genEventExpression(directive, context) {
-        var createKeyValueObjectNode = context.createKeyValueObjectNode;
-        switch (directive.name) {
-            case 'd-model':
-                // model指令即通过input事件双向绑定ref变量
-                context.events.push(createKeyValueObjectNode('input', "($event) => { ".concat(codeGuards[directive.name], " (").concat(directive.exp.content, ") = $event.target.value }"), 'Expression'));
-                context.attrs.push(createKeyValueObjectNode('value', "(".concat(directive.exp.content, ")"), 'Expression'));
-                break;
-            case 'd-show':
-                // show指令即简单通过style来标识是否展示此节点
-                context.attrs.push(createKeyValueObjectNode('_show_', "".concat(directive.exp.content), 'Expression'));
-                break;
-            case 'd-if':
-                // if指令通过在vnode上做标记来决定是否渲染此节点
-                context.attrs.push(createKeyValueObjectNode('_if_', directive.exp.content, 'Expression'));
-                break;
         }
     }
 
