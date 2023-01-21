@@ -48,11 +48,7 @@ export interface DirectiveTransformerContext {
 
     attrs: Array<PairNode>
 
-    createExpressionLiteral: (value: string) => ArgumentNode
-
-    createStringLiteral: (value: string) => ArgumentNode
-
-    createPairNode: (n1: ArgumentNode, n2: ArgumentNode) => PairNode
+    createKeyValueObjectNode: (key: string, value: string, type: 'Expression' | 'StringLiteral') => PairNode
 }
 
 

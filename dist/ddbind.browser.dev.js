@@ -2274,9 +2274,11 @@
         while (!context.source.startsWith('>') && !context.source.startsWith('/')) {
             var match = HTML_TAG_PROP_REG.exec(context.source);
             var propName = match[0];
-            advanceBy(propName.length); // 消费属性名
+            // 消费属性名
+            advanceBy(propName.length);
             advanceSpaces();
-            advanceBy(1); // 消费等号
+            // 消费等号
+            advanceBy(1);
             advanceSpaces();
             var propValue = '';
             var quote = context.source[0];
@@ -2294,9 +2296,16 @@
                 }
             }
             else {
+                // 属性值未带引号的情况
                 var match_1 = HTML_TAG_PROP_VALUE_WITHOUT_QUOTE.exec(context.source);
                 propValue = match_1[0];
                 advanceBy(propValue.length);
+            }
+            if (propValue.replace(/(^s*)|(s*$)/g, "").length == 0) {
+                error("the value of prop '".concat(propName, "' cannot be blank"), {
+                    propName: propName,
+                    propValue: propValue
+                });
             }
             advanceSpaces();
             var prop 
@@ -2304,6 +2313,7 @@
             = void 0;
             // 根据propName来进行不同类型属性的处理
             if (propName.startsWith('@') || propName.startsWith('d-on:') || propName.startsWith('on')) {
+                // 处理绑定事件
                 prop = {
                     type: 'Event',
                     // 事件名
@@ -2318,7 +2328,26 @@
                     }
                 };
             }
+            else if (propName.startsWith(':') || propName.startsWith('d-bind:')) {
+                var attrName = propName.startsWith(':')
+                    ? propName.slice(1, propName.length)
+                    : propName.slice(7, propName.length);
+                // 处理绑定属性
+                prop = {
+                    type: 'ReactiveProp',
+                    name: attrName,
+                    exp: {
+                        type: 'Expression',
+                        content: propValue
+                    }
+                };
+                // style和class动态属性不应覆盖而应叠加
+                if (attrName === 'style' || attrName === 'class') {
+                    prop.name = "_".concat(attrName, "_");
+                }
+            }
             else if (propName.startsWith('d-')) {
+                // 处理其他指令
                 prop = {
                     type: 'Directive',
                     name: propName,
@@ -2328,24 +2357,18 @@
                     }
                 };
             }
-            else if (propName.startsWith(':')) {
-                console.log(propName);
-                prop = {
-                    type: 'ReactiveProp',
-                    name: propName.slice(1, propName.length),
-                    exp: {
-                        type: 'Expression',
-                        content: propValue
-                    }
-                };
-            }
             else {
+                // 普通的HTML attr
                 prop = {
                     type: 'Attribute',
                     name: propName,
                     value: propValue
                 };
             }
+            // style和class属性需要单独处理
+            // if (/[]/.test(propName) || propName.includes('class')) {
+            //     prop = parseStyleOrClass(propName, propValue)
+            // }
             props.push(prop);
         }
         return props;
@@ -2479,7 +2502,8 @@
     function decodeHTMLText(rawText, asAttr) {
         if (asAttr === void 0) { asAttr = false; }
         var offset = 0;
-        var decodedText = ''; // 解码后的文本结果
+        // 存放解码后的文本结果
+        var decodedText = '';
         var endIndex = rawText.length;
         // advance 消费指定长度的文本
         function advance(length) {
@@ -2849,23 +2873,20 @@
      * @param context 上下文对象
      */
     function genEventExpression(directive, context) {
-        var createStringLiteral = context.createStringLiteral, createExpressionLiteral = context.createExpressionLiteral, createPairNode = context.createPairNode;
+        var createKeyValueObjectNode = context.createKeyValueObjectNode;
         switch (directive.name) {
             case 'd-model':
                 // model指令即通过input事件双向绑定ref变量
-                context.events.push(createPairNode(createStringLiteral('input'), createExpressionLiteral("($event) => { ".concat(codeGuards[directive.name], " (").concat(directive.exp.content, ") = $event.target.value }"))));
-                context.attrs.push(createPairNode(createStringLiteral('value'), createExpressionLiteral("(".concat(directive.exp.content, ")"))));
+                context.events.push(createKeyValueObjectNode('input', "($event) => { ".concat(codeGuards[directive.name], " (").concat(directive.exp.content, ") = $event.target.value }"), 'Expression'));
+                context.attrs.push(createKeyValueObjectNode('value', "(".concat(directive.exp.content, ")"), 'Expression'));
                 break;
             case 'd-show':
                 // show指令即简单通过style来标识是否展示此节点
-                context.attrs.push(createPairNode(createStringLiteral('style'), createExpressionLiteral("(".concat(directive.exp.content, ") ? {display: ''} : {display: 'none'}"))));
+                context.attrs.push(createKeyValueObjectNode('style', "(".concat(directive.exp.content, ") ? {display: ''} : {display: 'none'}"), 'Expression'));
                 break;
             case 'd-if':
                 // if指令通过在vnode上做标记来决定是否渲染此节点
-                context.attrs.push(createPairNode(createStringLiteral('_if_'), createExpressionLiteral(directive.exp.content)));
-                break;
-            case 'style':
-                console.log(directive.exp.content);
+                context.attrs.push(createKeyValueObjectNode('_if_', directive.exp.content, 'Expression'));
                 break;
         }
     }
@@ -2935,6 +2956,32 @@
         };
     }
     /**
+     * 创建一个预构建的[key: string]: any型键值对JsAST
+     * @param key 键
+     * @param value 值
+     * @param type 值类型
+     */
+    function createKeyValueObjectNode(key, value, type) {
+        var first = createStringLiteral(key);
+        var last;
+        // 若存在type，按type创建值ast对象
+        if (type && typeof value === 'string') {
+            last = type === 'StringLiteral' ? createStringLiteral(value) : createExpressionLiteral(value);
+        }
+        else if (typeof value !== 'string') {
+            // 若value为已构建好的ast则直接传入
+            last = value;
+        }
+        else {
+            error("the function createKeyValueObjectNode requires either an ArgumentNode as value param or a type for the third param", {
+                key: key,
+                value: value,
+                type: type
+            });
+        }
+        return createPairNode(first, last);
+    }
+    /**
      * 转换文本节点
      * @param node 目标节点
      */
@@ -2968,9 +3015,11 @@
         if (node.type !== 'Interpolation') {
             return;
         }
+        // 插值表达式需转换为字符串以显示
         var callExp = createCallExpression('_s', [
             createExpressionLiteral(node.content.content)
         ]);
+        // 字符串内容再转换成为文本节点
         node.jsNode = createCallExpression('_v', [
             callExp
         ]);
@@ -3028,30 +3077,28 @@
                 // 依次解析不同的prop并分类
                 node.props.forEach(function (prop) {
                     if (prop.type === 'Directive') { // 指令节点
-                        directives_1.push(createPairNode(createStringLiteral(prop.name), createExpressionLiteral(prop.exp.content)));
+                        directives_1.push(createKeyValueObjectNode(prop.name, prop.exp.content, 'Expression'));
                     }
                     else if (prop.type === 'Event') { // 事件处理函数节点
-                        events_1.push(createPairNode(createStringLiteral(prop.name), 
+                        events_1.push(createKeyValueObjectNode(prop.name, 
                         // 若函数名合法则校验是否为函数并判断是否需要包装函数体
-                        createExpressionLiteral("\n                            (typeof (".concat(/^([^\x00-\xff]|[a-zA-Z_$])([^\x00-\xff]|[a-zA-Z0-9_$])*$/i.test(prop.exp.content)
+                        "\n                            (typeof (".concat(/^([^\x00-\xff]|[a-zA-Z_$])([^\x00-\xff]|[a-zA-Z0-9_$])*$/i.test(prop.exp.content)
                             ? prop.exp.content
-                            : 'null', ") === 'function')\n                                ? (").concat(prop.exp.content, ")\n                                : () => { (").concat(prop.exp.content, ") }\n                                "))));
+                            : 'null', ") === 'function')\n                                ? (").concat(prop.exp.content, ")\n                                : () => { (").concat(prop.exp.content, ") }\n                            "), 'Expression'));
                     }
                     else if (prop.type === 'ReactiveProp') { // 绑定响应式数据的prop节点
-                        attrs_1.push(createPairNode(createStringLiteral(prop.name), createExpressionLiteral(prop.exp.content)));
+                        attrs_1.push(createKeyValueObjectNode(prop.name, prop.exp.content, 'Expression'));
                     }
                     else {
                         // 字符串型attrs
-                        attrs_1.push(createPairNode(createStringLiteral(prop.name), createStringLiteral(prop.value)));
+                        attrs_1.push(createKeyValueObjectNode(prop.name, prop.value, 'StringLiteral'));
                     }
                 });
                 // 解析并转换内置指令，优先级最高，因此在解析完常规props后才进行此操作
                 transformEventDirectiveExpression(node.props, {
                     events: events_1,
                     attrs: attrs_1,
-                    createStringLiteral: createStringLiteral,
-                    createExpressionLiteral: createExpressionLiteral,
-                    createPairNode: createPairNode
+                    createKeyValueObjectNode: createKeyValueObjectNode
                 });
                 callExp.arguments.push(elementDescriptor);
             }
@@ -3227,7 +3274,7 @@
          * @param el 目标HTML
          */
         Compiler.prototype.compileElement = function (el) {
-            var source = el.innerHTML;
+            var source = this.$vm.$template || el.innerHTML;
             var templateAST = parse(source); // 编译HTML模版为模版AST
             var jsAST = transform(templateAST); // 将模版AST转换为jsAST
             var code = generate(jsAST); // 根据jsAST生成渲染函数代码
@@ -3392,7 +3439,8 @@
                         }
                     };
                     invoker_1.value = newValue;
-                    invoker_1.attachTime = performance.now(); // 记录此事件的绑定时间
+                    // 记录此事件的绑定时间
+                    invoker_1.attachTime = performance.now();
                     el.addEventListener(eventName, invoker_1);
                 }
                 else {
@@ -3409,8 +3457,8 @@
             // 针对class属性进行处理
             el.className = newValue || '';
         }
-        else if (key === 'style') {
-            // 针对style属性进行处理
+        else if (key === '_style_') {
+            // 针对style动态属性进行处理
             if (Array.isArray(newValue)) {
                 for (var style in newValue) {
                     Object.assign(el.style, newValue[style]);
@@ -3420,9 +3468,21 @@
                 Object.assign(el.style, newValue);
             }
         }
+        else if (key === '_class_') {
+            // 针对class动态属性进行处理
+            if (Array.isArray(newValue)) {
+                for (var classKey in newValue) {
+                    el.classList.add(newValue[classKey]);
+                }
+            }
+            else {
+                el.classList.add(newValue);
+            }
+        }
         else if (shouldSetAsDomProps(el, key)) {
             var type = typeof el[key];
-            if (type === 'boolean' && newValue === '') { // 针对HTML attr中boolean型的属性进行处理
+            // 针对HTML attr中boolean型的属性进行处理
+            if (type === 'boolean' && newValue === '') {
                 el[key] = true;
             }
             else {
@@ -3887,10 +3947,14 @@
             else {
                 container = el || document.body;
             }
+            this.$template = this.$options.template;
             this.$el = container;
-            this.$compile = new Compiler(container, this); // 创建对应编译器
-            this.$renderer = createRenderer(); // 创建渲染器
-            container.innerHTML = ''; // 清空container原有的HTML结构
+            // 创建对应编译器
+            this.$compile = new Compiler(container, this);
+            // 创建渲染器
+            this.$renderer = createRenderer();
+            // 清空container原有的HTML结构
+            container.innerHTML = '';
             this._bind();
             // 注册响应式数据，当数据改变时重新渲染
             effect(function () {

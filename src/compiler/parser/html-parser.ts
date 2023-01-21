@@ -96,9 +96,11 @@ function parseAttributes(context: ParserContext): Array<PropNode> {
 
         const propName: string = match[0]
 
-        advanceBy(propName.length) // 消费属性名
+        // 消费属性名
+        advanceBy(propName.length)
         advanceSpaces()
-        advanceBy(1) // 消费等号
+        // 消费等号
+        advanceBy(1)
         advanceSpaces()
 
         let propValue: string = ''
@@ -115,15 +117,25 @@ function parseAttributes(context: ParserContext): Array<PropNode> {
                 error(`prop value of ${propName} lacks a quote.`, context.source)
             }
         } else {
+            // 属性值未带引号的情况
             const match = HTML_TAG_PROP_VALUE_WITHOUT_QUOTE.exec(context.source)
             propValue = match[0]
             advanceBy(propValue.length)
         }
+
+        if (propValue.replace(/(^s*)|(s*$)/g, "").length == 0) {
+            error(`the value of prop '${propName}' cannot be blank`, {
+                propName,
+                propValue
+            })
+        }
+
         advanceSpaces()
 
         let prop: PropNode
         // 根据propName来进行不同类型属性的处理
         if (propName.startsWith('@') || propName.startsWith('d-on:') || propName.startsWith('on')) {
+            // 处理绑定事件
             prop = {
                 type: 'Event',
                 // 事件名
@@ -137,7 +149,25 @@ function parseAttributes(context: ParserContext): Array<PropNode> {
                     content: propValue
                 }
             } as PropNode
+        } else if (propName.startsWith(':') || propName.startsWith('d-bind:')) {
+            const attrName = propName.startsWith(':')
+                ? propName.slice(1, propName.length)
+                : propName.slice(7, propName.length)
+            // 处理绑定属性
+            prop = {
+                type: 'ReactiveProp',
+                name: attrName,
+                exp: {
+                    type: 'Expression',
+                    content: propValue
+                }
+            } as PropNode
+            // style和class动态属性不应覆盖而应叠加
+            if (attrName === 'style' || attrName === 'class') {
+                prop.name = `_${attrName}_`
+            }
         } else if (propName.startsWith('d-')) {
+            // 处理其他指令
             prop = {
                 type: 'Directive',
                 name: propName,
@@ -146,23 +176,19 @@ function parseAttributes(context: ParserContext): Array<PropNode> {
                     content: propValue
                 }
             } as PropNode
-        } else if (propName.startsWith(':')) {
-            console.log(propName)
-            prop = {
-                type: 'ReactiveProp',
-                name: propName.slice(1, propName.length),
-                exp: {
-                    type: 'Expression',
-                    content: propValue
-                }
-            } as PropNode
         } else {
+            // 普通的HTML attr
             prop = {
                 type: 'Attribute',
                 name: propName,
                 value: propValue
             } as PropNode
         }
+
+        // style和class属性需要单独处理
+        // if (/[]/.test(propName) || propName.includes('class')) {
+        //     prop = parseStyleOrClass(propName, propValue)
+        // }
 
         props.push(prop)
     }
@@ -318,7 +344,8 @@ function parseText(context: ParserContext): TemplateAST {
  */
 function decodeHTMLText(rawText: string, asAttr: boolean = false): string {
     let offset: number = 0
-    let decodedText: string = '' // 解码后的文本结果
+    // 存放解码后的文本结果
+    let decodedText: string = ''
     const endIndex: number = rawText.length
 
     // advance 消费指定长度的文本

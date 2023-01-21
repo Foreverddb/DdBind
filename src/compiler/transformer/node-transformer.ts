@@ -9,7 +9,7 @@ import {
     ReturnStatementNode,
     TemplateAST
 } from "types/compiler";
-import {warn} from "utils/debug";
+import {error, warn} from "utils/debug";
 import {transformEventDirectiveExpression} from "compiler/directives";
 
 /**
@@ -82,6 +82,35 @@ function createPairNode(first: JavascriptNode, last: JavascriptNode): PairNode {
     } as PairNode
 }
 
+/**
+ * 创建一个预构建的[key: string]: any型键值对JsAST
+ * @param key 键
+ * @param value 值
+ * @param type 值类型
+ */
+function createKeyValueObjectNode(key: string, value: string | ArgumentNode, type?: 'Expression' | 'StringLiteral'): PairNode {
+    const first: ArgumentNode = createStringLiteral(key)
+    let last: ArgumentNode
+    // 若存在type，按type创建值ast对象
+    if (type && typeof value === 'string') {
+        last = type === 'StringLiteral' ? createStringLiteral(value) : createExpressionLiteral(value)
+    } else if (typeof value !== 'string'){
+        // 若value为已构建好的ast则直接传入
+        last = value
+    } else if (__DEV__){
+        error(`the function createKeyValueObjectNode requires either an ArgumentNode as value param or a type for the third param`, {
+            key,
+            value,
+            type
+        })
+    }
+
+    return createPairNode(
+        first,
+        last
+    )
+}
+
 
 /**
  * 转换文本节点
@@ -121,11 +150,11 @@ export function transformInterpolation(node: TemplateAST) {
     if (node.type !== 'Interpolation') {
         return
     }
-
+    // 插值表达式需转换为字符串以显示
     const callExp = createCallExpression('_s', [
         createExpressionLiteral((node.content as ExpressionNode).content)
     ])
-
+    // 字符串内容再转换成为文本节点
     node.jsNode = createCallExpression('_v', [
         callExp
     ])
@@ -190,41 +219,44 @@ export function transformElement(node: TemplateAST): () => void {
             node.props.forEach(prop => {
                 if (prop.type === 'Directive') { // 指令节点
                     directives.push(
-                        createPairNode(
-                            createStringLiteral(prop.name),
-                            createExpressionLiteral(prop.exp.content)
+                        createKeyValueObjectNode(
+                            prop.name,
+                            prop.exp.content,
+                            'Expression'
                         )
                     )
                 } else if (prop.type === 'Event') { // 事件处理函数节点
                     events.push(
-                        createPairNode(
-                            createStringLiteral(prop.name),
+                        createKeyValueObjectNode(
+                            prop.name,
                             // 若函数名合法则校验是否为函数并判断是否需要包装函数体
-                            createExpressionLiteral(`
+                            `
                             (typeof (${
-                                    /^([^\x00-\xff]|[a-zA-Z_$])([^\x00-\xff]|[a-zA-Z0-9_$])*$/i.test(prop.exp.content)
-                                        ? prop.exp.content
-                                        : 'null'
-                                }) === 'function')
+                                /^([^\x00-\xff]|[a-zA-Z_$])([^\x00-\xff]|[a-zA-Z0-9_$])*$/i.test(prop.exp.content)
+                                    ? prop.exp.content
+                                    : 'null'
+                            }) === 'function')
                                 ? (${prop.exp.content})
                                 : () => { (${prop.exp.content}) }
-                                `
-                            )
+                            `,
+                            'Expression'
                         )
                     )
                 } else if (prop.type === 'ReactiveProp') { // 绑定响应式数据的prop节点
                     attrs.push(
-                        createPairNode(
-                            createStringLiteral(prop.name),
-                            createExpressionLiteral(prop.exp.content)
+                        createKeyValueObjectNode(
+                            prop.name,
+                            prop.exp.content,
+                            'Expression'
                         )
                     )
                 } else {
                     // 字符串型attrs
                     attrs.push(
-                        createPairNode(
-                            createStringLiteral(prop.name),
-                            createStringLiteral(prop.value)
+                        createKeyValueObjectNode(
+                            prop.name,
+                            prop.value,
+                            'StringLiteral'
                         )
                     )
                 }
@@ -236,9 +268,7 @@ export function transformElement(node: TemplateAST): () => void {
                 {
                     events: events,
                     attrs: attrs,
-                    createStringLiteral,
-                    createExpressionLiteral,
-                    createPairNode
+                    createKeyValueObjectNode
                 }
             )
 

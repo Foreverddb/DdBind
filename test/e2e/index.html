@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <title>Title</title>
     <script src="../../dist/ddbind.browser.dev.js"></script>
+    <style>
+        .test {
+            font-size: 30px;
+        }
+    </style>
 </head>
 <body>
 <div id="app">
@@ -12,8 +17,8 @@
             outText
             <span d-if="foo === 'bar'">text</span>
         </h1>
-        <input :placeholder="re.text" d-model="foo" :type="foo.startsWith('bar') ? 'text' : 'password'"/>
-        <div id="test">
+        <input :class="['test', 'test2']" :placeholder="re.text" d-model="foo" :type="foo.startsWith('bar') ? 'text' : 'password'"/>
+        <div style="color: red" id="test">
             foo: {{ foo === 'bar' ? re.text : foo }}
         </div>
         <div>

@@ -29,7 +29,7 @@ export class Compiler {
      * @param el 目标HTML
      */
     private compileElement(el: HTMLElement) {
-        const source = el.innerHTML
+        const source = this.$vm.$template || el.innerHTML
 
         const templateAST: TemplateAST = parse(source) // 编译HTML模版为模版AST
 

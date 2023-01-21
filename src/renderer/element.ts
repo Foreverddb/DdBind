@@ -41,7 +41,8 @@ export function patchProps(el: Container, key: string, oldValue: any, newValue: 
                     }
                 }
                 invoker.value = newValue
-                invoker.attachTime = performance.now() // 记录此事件的绑定时间
+                // 记录此事件的绑定时间
+                invoker.attachTime = performance.now()
                 el.addEventListener(eventName, invoker)
             } else {
                 // 若有事件处理函数则可直接更新
@@ -54,8 +55,8 @@ export function patchProps(el: Container, key: string, oldValue: any, newValue: 
     } else if (key === 'class') {
         // 针对class属性进行处理
         el.className = newValue || ''
-    } else if (key === 'style') {
-        // 针对style属性进行处理
+    } else if (key === '_style_') {
+        // 针对style动态属性进行处理
         if (Array.isArray(newValue)) {
             for (const style in newValue) {
                 Object.assign(el.style, newValue[style])
@@ -63,9 +64,19 @@ export function patchProps(el: Container, key: string, oldValue: any, newValue: 
         } else if (typeof newValue === 'object'){
             Object.assign(el.style, newValue)
         }
+    } else if (key === '_class_') {
+        // 针对class动态属性进行处理
+        if (Array.isArray(newValue)) {
+            for (const classKey in newValue) {
+                el.classList.add(newValue[classKey])
+            }
+        } else {
+            el.classList.add(newValue)
+        }
     } else if (shouldSetAsDomProps(el, key, newValue)) {
         const type = typeof el[key]
-        if (type === 'boolean' && newValue === '') { // 针对HTML attr中boolean型的属性进行处理
+        // 针对HTML attr中boolean型的属性进行处理
+        if (type === 'boolean' && newValue === '') {
             el[key] = true
         } else {
             el[key] = newValue

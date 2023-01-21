@@ -11,6 +11,9 @@ import {watch} from "reactivity/watch";
  * app对象，同时也是响应式数据绑定this的vm对象
  */
 export class DdBind {
+
+    $template: string
+
     $el: HTMLElement
 
     $options: DdBindOptions
@@ -47,12 +50,15 @@ export class DdBind {
             container = el || document.body
         }
 
+        this.$template = this.$options.template
         this.$el = container
 
-        this.$compile = new Compiler(container, this) // 创建对应编译器
-
-        this.$renderer = createRenderer() // 创建渲染器
-        container.innerHTML = '' // 清空container原有的HTML结构
+        // 创建对应编译器
+        this.$compile = new Compiler(container, this)
+        // 创建渲染器
+        this.$renderer = createRenderer()
+        // 清空container原有的HTML结构
+        container.innerHTML = ''
 
         this._bind()
 

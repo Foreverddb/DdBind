@@ -1,4 +1,6 @@
 export interface DdBindOptions {
+
+    template?: string
     setup: () => object
 
     onMounted: () => any

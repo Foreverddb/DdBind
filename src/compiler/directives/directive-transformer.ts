@@ -22,44 +22,45 @@ export function transformEventDirectiveExpression(directives: Array<PropNode>, c
  * @param context 上下文对象
  */
 function genEventExpression(directive: PropNode, context: DirectiveTransformerContext) {
-    const {createStringLiteral, createExpressionLiteral, createPairNode} = context
+    const {createKeyValueObjectNode} = context
 
     switch (directive.name) {
         case 'd-model':
             // model指令即通过input事件双向绑定ref变量
             context.events.push(
-                createPairNode(
-                    createStringLiteral('input'),
-                    createExpressionLiteral(`($event) => { ${codeGuards[directive.name]} (${directive.exp.content}) = $event.target.value }`)
+                createKeyValueObjectNode(
+                    'input',
+                    `($event) => { ${codeGuards[directive.name]} (${directive.exp.content}) = $event.target.value }`,
+                    'Expression'
                 )
             )
             context.attrs.push(
-                createPairNode(
-                    createStringLiteral('value'),
-                    createExpressionLiteral(`(${directive.exp.content})`)
+                createKeyValueObjectNode(
+                    'value',
+                    `(${directive.exp.content})`,
+                    'Expression'
                 )
             )
             break
         case 'd-show':
             // show指令即简单通过style来标识是否展示此节点
             context.attrs.push(
-                createPairNode(
-                    createStringLiteral('style'),
-                    createExpressionLiteral(`(${ directive.exp.content }) ? {display: ''} : {display: 'none'}`)
+                createKeyValueObjectNode(
+                    'style',
+                    `(${directive.exp.content}) ? {display: ''} : {display: 'none'}`,
+                    'Expression'
                 )
             )
             break
         case 'd-if':
             // if指令通过在vnode上做标记来决定是否渲染此节点
             context.attrs.push(
-                createPairNode(
-                    createStringLiteral('_if_'),
-                    createExpressionLiteral(directive.exp.content)
+                createKeyValueObjectNode(
+                    '_if_',
+                    directive.exp.content,
+                    'Expression'
                 )
             )
-            break
-        case 'style':
-            console.log(directive.exp.content)
             break
     }
 }
