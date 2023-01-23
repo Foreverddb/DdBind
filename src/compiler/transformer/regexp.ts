@@ -1,0 +1,1 @@
+export const JS_VARIABLE_NAME_VALIDATOR: RegExp = /^([^\x00-\xff]|[a-zA-Z_$])([^\x00-\xff]|[a-zA-Z0-9_$])*$/i

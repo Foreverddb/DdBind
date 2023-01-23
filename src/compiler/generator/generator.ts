@@ -171,13 +171,3 @@ function genObjectExpression(node: ArgumentNode, context: GeneratorContext) {
     deIndent()
     push('}')
 }
-
-/**
- * 生成指令表达式代码
- * @param node 目标节点
- * @param context 上下文对象
- */
-function genDirectives(node: ArgumentNode, context: GeneratorContext) {
-    const {push, indent, deIndent} = context
-
-}

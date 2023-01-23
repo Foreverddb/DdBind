@@ -36,7 +36,6 @@ export class Compiler {
         const jsAST: JavascriptNode = transform(templateAST) // 将模版AST转换为jsAST
 
         const code: string = generate(jsAST) // 根据jsAST生成渲染函数代码
-        console.log(code)
 
         this.$vm.$render = createFunction(code, this.$vm)
     }

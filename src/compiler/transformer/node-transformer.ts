@@ -11,6 +11,7 @@ import {
 } from "types/compiler";
 import {error, warn} from "utils/debug";
 import {transformEventDirectiveExpression} from "compiler/directives";
+import {JS_VARIABLE_NAME_VALIDATOR} from "compiler/transformer/regexp";
 
 /**
  * 创建StringLiteral型的JsAST
@@ -230,15 +231,7 @@ export function transformElement(node: TemplateAST): () => void {
                         createKeyValueObjectNode(
                             prop.name,
                             // 若函数名合法则校验是否为函数并判断是否需要包装函数体
-                            `
-                            (typeof (${
-                                /^([^\x00-\xff]|[a-zA-Z_$])([^\x00-\xff]|[a-zA-Z0-9_$])*$/i.test(prop.exp.content)
-                                    ? prop.exp.content
-                                    : 'null'
-                            }) === 'function')
-                                ? (${prop.exp.content})
-                                : () => { (${prop.exp.content}) }
-                            `,
+                            `(typeof (${ JS_VARIABLE_NAME_VALIDATOR.test(prop.exp.content) ? prop.exp.content : 'null' }) === 'function') ? (${prop.exp.content}) : () => { (${prop.exp.content}) }`,
                             'Expression'
                         )
                     )

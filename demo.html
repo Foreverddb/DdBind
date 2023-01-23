@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
-    <script src="../../dist/ddbind.browser.dev.js"></script>
+    <title>DdBind Demo</title>
+    <script src="dist/ddbind.browser.dev.js"></script>
     <style>
         .test {
             font-size: 30px;
@@ -17,7 +17,8 @@
             outText
             <span d-if="foo === 'bar'">text</span>
         </h1>
-        <input :class="['test', 'test2']" :placeholder="re.text" d-model="foo" :type="foo.startsWith('bar') ? 'text' : 'password'"/>
+        <input :class="['test', 'test2']" :placeholder="re.text" d-model="foo"
+               :type="foo.startsWith('bar') ? 'text' : 'password'"/>
         <div :style="[{color: 'red'}]" id="test">
             foo: {{ foo === 'bar' ? re.text : foo }}
         </div>
@@ -27,7 +28,6 @@
         <button @click="change">
             click foo
         </button>
-
         <p>clicked {{ count }} times </p>
         <button d-show="count < 3" @click="countAdd">
             click me to increase (I will hide when count is greater than 3)
@@ -42,7 +42,8 @@
         data() {
             return {
                 foo: 'bar',
-                count: 0
+                count: 0,
+                ary: ['ff']
             }
         },
         setup() {
@@ -63,7 +64,7 @@
                 this.foo = 'clicked!!!!!!!!'
             },
             countAdd() {
-                this.count ++
+                this.count++
             }
         },
         watch: {

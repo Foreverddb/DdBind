@@ -1,5 +1,6 @@
 import {Container, Renderer, VNode} from "types/renderer";
-import {patch, unmountElement} from "renderer/element";
+import {patch} from "renderer/patch";
+import {unmountElement} from "renderer/element-render";
 
 export {createVnode, createTextVnode, stringVal} from './utils'
 

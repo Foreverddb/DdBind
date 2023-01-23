@@ -3,7 +3,7 @@ import {genNode} from "compiler/generator/generator";
 
 export {
     codeGuards
-} from './events'
+} from './helper'
 
 /**
  * 根据jsAST生成渲染函数代码

@@ -1,5 +1,8 @@
 import {Container, VNode} from "types/renderer";
 
+/**
+ * vnode的建造者方法实现类
+ */
 export class VnodeUtil {
     static builder(): VnodeBuilder {
         return new VnodeBuilder()

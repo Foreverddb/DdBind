@@ -2399,7 +2399,7 @@
     function transformEventDirectiveExpression(directives, context) {
         // 过滤节点数组
         directives.filter(function (x) { return x.type === 'Directive'; }).forEach(function (directive) {
-            genEventExpression(directive, context);
+            genDirectiveExpression(directive, context);
         });
     }
     /**
@@ -2407,27 +2407,37 @@
      * @param directive 目标指令节点
      * @param context 上下文对象
      */
-    function genEventExpression(directive, context) {
-        var createKeyValueObjectNode = context.createKeyValueObjectNode;
-        switch (directive.name) {
-            case 'd-model':
-                // model指令即通过input事件双向绑定ref变量
-                context.events.push(createKeyValueObjectNode('input', "($event) => { ".concat(codeGuards[directive.name], " (").concat(directive.exp.content, ") = $event.target.value }"), 'Expression'));
-                context.attrs.push(createKeyValueObjectNode('value', "(".concat(directive.exp.content, ")"), 'Expression'));
-                break;
-            case 'd-show':
-                // show指令即简单通过style来标识是否展示此节点
-                context.attrs.push(createKeyValueObjectNode('_show_', "".concat(directive.exp.content), 'Expression'));
-                break;
-            case 'd-if':
-                // if指令通过在vnode上做标记来决定是否渲染此节点
-                context.attrs.push(createKeyValueObjectNode('_if_', directive.exp.content, 'Expression'));
-                break;
-            case 'd-html':
-                context.attrs.push(createKeyValueObjectNode('innerHTML', directive.exp.content, 'StringLiteral'));
-                break;
-        }
+    function genDirectiveExpression(directive, context) {
+        // 除去开头的d-
+        var directiveName = directive.name.slice(2, directive.name.length);
+        // 处理handler并进行转换操作
+        directiveHandler[directiveName + 'Handler'](directive, context);
     }
+    /**
+     * directive的处理函数列表
+     */
+    var directiveHandler = {
+        modelHandler: function (directive, context) {
+            var createKeyValueObjectNode = context.createKeyValueObjectNode;
+            // model指令即通过input事件双向绑定ref变量
+            context.events.push(createKeyValueObjectNode('input', "($event) => { ".concat(codeGuards[directive.name], " (").concat(directive.exp.content, ") = $event.target.value }"), 'Expression'));
+            context.attrs.push(createKeyValueObjectNode('value', "(".concat(directive.exp.content, ")"), 'Expression'));
+        },
+        showHandler: function (directive, context) {
+            var createKeyValueObjectNode = context.createKeyValueObjectNode;
+            // show指令即简单通过style来标识是否展示此节点
+            context.attrs.push(createKeyValueObjectNode('_show_', "".concat(directive.exp.content), 'Expression'));
+        },
+        ifHandler: function (directive, context) {
+            var createKeyValueObjectNode = context.createKeyValueObjectNode;
+            // if指令通过在vnode上做标记来决定是否渲染此节点
+            context.attrs.push(createKeyValueObjectNode('_if_', directive.exp.content, 'Expression'));
+        },
+        htmlHandler: function (directive, context) {
+            var createKeyValueObjectNode = context.createKeyValueObjectNode;
+            context.attrs.push(createKeyValueObjectNode('innerHTML', directive.exp.content, 'StringLiteral'));
+        }
+    };
 
     /**
      * 解析指令属性并返回解析结果作为目标节点对象
@@ -2755,7 +2765,7 @@
             advance(head.index); // 消费&前的内容
             if (head[0] === '&') {
                 var name_1 = '';
-                var value = void 0;
+                var value = undefined;
                 if (ALPHABET_OR_NUMBER_REG.test(rawText[1])) {
                     // 依次从最长到最短查表寻找匹配的引用字符名称
                     for (var length_1 = decodeMapKeyMaxLen; !value && length_1 > 0; --length_1) {
@@ -2897,6 +2907,8 @@
             exitFns[i]();
         }
     }
+
+    var JS_VARIABLE_NAME_VALIDATOR = /^([^\x00-\xff]|[a-zA-Z_$])([^\x00-\xff]|[a-zA-Z0-9_$])*$/i;
 
     /**
      * 创建StringLiteral型的JsAST
@@ -3089,9 +3101,7 @@
                     else if (prop.type === 'Event') { // 事件处理函数节点
                         events_1.push(createKeyValueObjectNode(prop.name, 
                         // 若函数名合法则校验是否为函数并判断是否需要包装函数体
-                        "\n                            (typeof (".concat(/^([^\x00-\xff]|[a-zA-Z_$])([^\x00-\xff]|[a-zA-Z0-9_$])*$/i.test(prop.exp.content)
-                            ? prop.exp.content
-                            : 'null', ") === 'function')\n                                ? (").concat(prop.exp.content, ")\n                                : () => { (").concat(prop.exp.content, ") }\n                            "), 'Expression'));
+                        "(typeof (".concat(JS_VARIABLE_NAME_VALIDATOR.test(prop.exp.content) ? prop.exp.content : 'null', ") === 'function') ? (").concat(prop.exp.content, ") : () => { (").concat(prop.exp.content, ") }"), 'Expression'));
                     }
                     else if (prop.type === 'ReactiveProp') { // 绑定响应式数据的prop节点
                         attrs_1.push(createKeyValueObjectNode(prop.name, prop.exp.content, 'Expression'));
@@ -3162,6 +3172,9 @@
     var TextVnodeSymbol = Symbol('TextVnodeSymbol');
     var CommentVnodeSymbol = Symbol('CommentVnodeSymbol');
 
+    /**
+     * vnode的建造者方法实现类
+     */
     var VnodeUtil = /** @class */ (function () {
         function VnodeUtil() {
         }
