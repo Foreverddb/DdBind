@@ -1,8 +1,13 @@
 {
   "name": "ddbind",
   "version": "1.0.0",
-  "description": "",
-  "main": "dist/index.js",
+  "author": {
+    "name": "ForeverDdB",
+    "url": "https://github.com/Foreverddb"
+  },
+  "description": "a MVVM framework",
+  "browser": "dist/ddbind.browser.prod.js",
+  "module": "dist/ddbind.node.prod.js",
   "typings": "types/index.d.ts",
   "scripts": {
     "dev:browser": "rollup -w -c scripts/config.js --environment BROWSER:true",
@@ -10,8 +15,13 @@
     "build": "node scripts/build.js",
     "test:unit": "vitest test/unit"
   },
-  "keywords": [],
-  "author": "",
+  "homepage": "https://github.com/Foreverddb/DdBind#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Foreverddb/DdBind.git"
+  },
+  "bugs": "https://github.com/Foreverddb/DdBind/issues",
+  "keywords": ["ddbind", "mvvm"],
   "license": "ISC",
   "devDependencies": {
     "@rollup/plugin-replace": "^5.0.2",

@@ -4,11 +4,10 @@ import {
     TemplateAST
 } from "types/compiler";
 import {parse} from "compiler/parser";
-import {expect} from "vitest";
 
 describe('transformer', () => {
     // 测试简单的转换
-    it('simple transform', () => {
+    it('dose simple transform', () => {
         const template: TemplateAST = parse('<h1>hello world</h1>')
         const ast: any = transform(template)
         expect(ast.body[0].type).toBe('ReturnStatement')
@@ -20,7 +19,7 @@ describe('transformer', () => {
         } as ArgumentNode)
     })
     // 测试指令的转换
-    it('directive transform', () => {
+    it('dose directive transform', () => {
         const template: TemplateAST = parse('<input d-model="foo" />')
         const ast: any = transform(template)
         expect(ast.body[0].return.arguments[1].elements[0].first.value).toBe('directives')

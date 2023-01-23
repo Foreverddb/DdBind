@@ -40,11 +40,10 @@ export function toRefs(target: object) {
  * 创建一个代理对象，在其中可以自动脱ref
  * @param target 目标对象
  */
-export function proxyRefs<T extends object>(target: T): T {
+export function proxyRefs<T extends object>(target: T): any {
     return new Proxy(target, {
         get(target: any, p: string | symbol, receiver: any): any {
             const value = Reflect.get(target, p, receiver)
-            // console.log(target, p, value)
             return (value && value._is_Ref_) ? value.value : value // 若为ref型对象则返回其value
         },
         set(target: T, p: string | symbol, newValue: any, receiver: any): boolean {

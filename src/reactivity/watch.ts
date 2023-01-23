@@ -1,5 +1,6 @@
 import {effect} from "core/effect";
 import {warn} from "utils/debug";
+import {RefObj} from "types/reactivity";
 
 /**
  * 侦听属性的回调函数类型
@@ -28,7 +29,7 @@ function traverseRef(value: any, traversed = new Set()) {
  * @param target 侦听对象
  * @param callback 对象值发生变化时执行的回调
  */
-export function watch<T>(target: object | (() => any), callback: WatchCallback<T>) {
+export function watch<T>(target: T | (() => T) | RefObj<T>, callback: WatchCallback<T>) {
     if (__DEV__ && typeof target !== "object") {
         warn(`watch() requires a object as watching target, received type is ${typeof target}`, target)
     }
@@ -50,7 +51,11 @@ export function watch<T>(target: object | (() => any), callback: WatchCallback<T
         isLazy: true,
         scheduler: () => {
             let data = effectFn()
-            newValue = (data._is_Ref_) ? data.value : {...data} // 防止与oldValue引用同一对象
+            newValue = (data._is_Ref_)
+                ? data.value
+                : (typeof data === 'object'
+                    ? {...data} // 防止与oldValue引用同一对象
+                    : data)
 
             if (onExpiredHandler) onExpiredHandler() // 若注册了过期函数则在回调前执行
 
