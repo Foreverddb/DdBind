@@ -2392,28 +2392,6 @@
     }
 
     /**
-     * 针对directives指令部分转换代码表达式
-     * @param directives 指令节点
-     * @param context 上下文对象
-     */
-    function transformEventDirectiveExpression(directives, context) {
-        // 过滤节点数组
-        directives.filter(function (x) { return x.type === 'Directive'; }).forEach(function (directive) {
-            genDirectiveExpression(directive, context);
-        });
-    }
-    /**
-     * 根据指令内容生成JsAST
-     * @param directive 目标指令节点
-     * @param context 上下文对象
-     */
-    function genDirectiveExpression(directive, context) {
-        // 除去开头的d-
-        var directiveName = directive.name.slice(2, directive.name.length);
-        // 处理handler并进行转换操作
-        directiveHandler[directiveName + 'Handler'](directive, context);
-    }
-    /**
      * directive的处理函数列表
      */
     var directiveHandler = {
@@ -2438,6 +2416,29 @@
             context.attrs.push(createKeyValueObjectNode('innerHTML', directive.exp.content, 'StringLiteral'));
         }
     };
+
+    /**
+     * 针对directives指令部分转换代码表达式
+     * @param directives 指令节点
+     * @param context 上下文对象
+     */
+    function transformEventDirectiveExpression(directives, context) {
+        // 过滤节点数组
+        directives.filter(function (x) { return x.type === 'Directive'; }).forEach(function (directive) {
+            genDirectiveExpression(directive, context);
+        });
+    }
+    /**
+     * 根据指令内容生成JsAST
+     * @param directive 目标指令节点
+     * @param context 上下文对象
+     */
+    function genDirectiveExpression(directive, context) {
+        // 除去开头的d-
+        var directiveName = directive.name.slice(2, directive.name.length);
+        // 处理handler并进行转换操作
+        directiveHandler[directiveName + 'Handler'](directive, context);
+    }
 
     /**
      * 解析指令属性并返回解析结果作为目标节点对象
@@ -2500,6 +2501,111 @@
             };
         }
         return prop;
+    }
+
+    /**
+     * 解析HTML中的引用字符
+     * @param rawText 需要解码的文本
+     * @param asAttr 是否用于解码属性值
+     */
+    function decodeHTMLText(rawText, asAttr) {
+        if (asAttr === void 0) { asAttr = false; }
+        var offset = 0;
+        // 存放解码后的文本结果
+        var decodedText = '';
+        var endIndex = rawText.length;
+        // advance 消费指定长度的文本
+        function advance(length) {
+            offset += length;
+            rawText = rawText.slice(length);
+        }
+        while (offset < endIndex) {
+            // 校验字符引用方式
+            // &为命名字符引用
+            // &#为十进制数字字符引用
+            // &#x为十六进制数字字符引用
+            var head = HTML_REFERENCE_HEAD_REG.exec(rawText);
+            // 无匹配则说明无需解码
+            if (!head) {
+                var remaining = endIndex - offset;
+                decodedText += rawText.slice(0, remaining);
+                advance(remaining);
+                break;
+            }
+            decodedText += rawText.slice(0, head.index);
+            advance(head.index); // 消费&前的内容
+            if (head[0] === '&') {
+                var name_1 = '';
+                var value = undefined;
+                if (ALPHABET_OR_NUMBER_REG.test(rawText[1])) {
+                    // 依次从最长到最短查表寻找匹配的引用字符名称
+                    for (var length_1 = decodeMapKeyMaxLen; !value && length_1 > 0; --length_1) {
+                        name_1 = rawText.slice(1, 1 + length_1);
+                        value = decodeMap[name_1];
+                    }
+                    if (value) {
+                        var semi = (rawText[1 + name_1.length] || '') === ';';
+                        // 如果解码的文本作为属性值，最后一个匹配的字符不是分号，
+                        // 并且最后一个匹配字符的下一个字符是等于号(=)、ASCII 字母或数字，
+                        // 将字符 & 和实体名称 name 作为普通文本
+                        if (asAttr &&
+                            !semi &&
+                            /[=a-z0-9]/i.test(rawText[1 + name_1.length] || '')) {
+                            decodedText += '&' + name_1;
+                            advance(1 + name_1.length);
+                        }
+                        else {
+                            decodedText += value;
+                            advance(semi ? 2 + name_1.length : 1 + name_1.length); // 由于查找键时未包含分号，若末尾有分号需同时消费掉
+                        }
+                    }
+                    else { // 解码失败，无对应值
+                        decodedText += '&' + name_1;
+                        advance(1 + name_1.length);
+                    }
+                }
+                else {
+                    decodedText += '&';
+                    advance(1);
+                }
+            }
+            else {
+                // 根据引用头判断数字的引用进制
+                var isHex = head[0] === '&#x';
+                var pattern = isHex ? HTML_REFERENCE_HEX_REG : HTML_REFERENCE_NUMBER_REG;
+                var body = pattern.exec(rawText); // 匹配得到unicode码值
+                if (body) {
+                    // 根据进制将转为改为数字
+                    var codePoint = parseInt(body[1], isHex ? 16 : 10);
+                    // 检查unicode值合法性并进行替换
+                    if (codePoint === 0) {
+                        codePoint = 0xfffd;
+                    }
+                    else if (codePoint > 0x10ffff) {
+                        codePoint = 0xfffd;
+                    }
+                    else if (codePoint > 0xd800 && codePoint < 0xdfff) {
+                        codePoint = 0xfffd;
+                    }
+                    else if ((codePoint > 0xfdd0 && codePoint <= 0xfdef) || (codePoint & 0xfffe) === 0xfffe) ;
+                    else if ((codePoint >= 0x01 && codePoint <= 0x08) ||
+                        codePoint === 0x0b ||
+                        (codePoint >= 0x0d && codePoint <= 0x1f) ||
+                        (codePoint >= 0x7f && codePoint <= 0x9f)) {
+                        codePoint = CCR_REPLACEMENTS[codePoint] || codePoint;
+                    }
+                    // 解码
+                    var char = String.fromCodePoint(codePoint);
+                    decodedText += char;
+                    advance(body[0].length);
+                }
+                else { // 无匹配则直接当作文本处理
+                    decodedText += head[0];
+                    advance(head[0].length);
+                }
+            }
+        }
+        return decodedText;
     }
 
     /**
@@ -2731,110 +2837,6 @@
             type: 'Text',
             content: decodeHTMLText(content)
         };
-    }
-    /**
-     * 解析HTML中的引用字符
-     * @param rawText 需要解码的文本
-     * @param asAttr 是否用于解码属性值
-     */
-    function decodeHTMLText(rawText, asAttr) {
-        if (asAttr === void 0) { asAttr = false; }
-        var offset = 0;
-        // 存放解码后的文本结果
-        var decodedText = '';
-        var endIndex = rawText.length;
-        // advance 消费指定长度的文本
-        function advance(length) {
-            offset += length;
-            rawText = rawText.slice(length);
-        }
-        while (offset < endIndex) {
-            // 校验字符引用方式
-            // &为命名字符引用
-            // &#为十进制数字字符引用
-            // &#x为十六进制数字字符引用
-            var head = HTML_REFERENCE_HEAD_REG.exec(rawText);
-            // 无匹配则说明无需解码
-            if (!head) {
-                var remaining = endIndex - offset;
-                decodedText += rawText.slice(0, remaining);
-                advance(remaining);
-                break;
-            }
-            decodedText += rawText.slice(0, head.index);
-            advance(head.index); // 消费&前的内容
-            if (head[0] === '&') {
-                var name_1 = '';
-                var value = undefined;
-                if (ALPHABET_OR_NUMBER_REG.test(rawText[1])) {
-                    // 依次从最长到最短查表寻找匹配的引用字符名称
-                    for (var length_1 = decodeMapKeyMaxLen; !value && length_1 > 0; --length_1) {
-                        name_1 = rawText.slice(1, 1 + length_1);
-                        value = decodeMap[name_1];
-                    }
-                    if (value) {
-                        var semi = (rawText[1 + name_1.length] || '') === ';';
-                        // 如果解码的文本作为属性值，最后一个匹配的字符不是分号，
-                        // 并且最后一个匹配字符的下一个字符是等于号(=)、ASCII 字母或数字，
-                        // 将字符 & 和实体名称 name 作为普通文本
-                        if (asAttr &&
-                            !semi &&
-                            /[=a-z0-9]/i.test(rawText[1 + name_1.length] || '')) {
-                            decodedText += '&' + name_1;
-                            advance(1 + name_1.length);
-                        }
-                        else {
-                            decodedText += value;
-                            advance(semi ? 2 + name_1.length : 1 + name_1.length); // 由于查找键时未包含分号，若末尾有分号需同时消费掉
-                        }
-                    }
-                    else { // 解码失败，无对应值
-                        decodedText += '&' + name_1;
-                        advance(1 + name_1.length);
-                    }
-                }
-                else {
-                    decodedText += '&';
-                    advance(1);
-                }
-            }
-            else {
-                // 根据引用头判断数字的引用进制
-                var isHex = head[0] === '&#x';
-                var pattern = isHex ? HTML_REFERENCE_HEX_REG : HTML_REFERENCE_NUMBER_REG;
-                var body = pattern.exec(rawText); // 匹配得到unicode码值
-                if (body) {
-                    // 根据进制将转为改为数字
-                    var codePoint = parseInt(body[1], isHex ? 16 : 10);
-                    // 检查unicode值合法性并进行替换
-                    if (codePoint === 0) {
-                        codePoint = 0xfffd;
-                    }
-                    else if (codePoint > 0x10ffff) {
-                        codePoint = 0xfffd;
-                    }
-                    else if (codePoint > 0xd800 && codePoint < 0xdfff) {
-                        codePoint = 0xfffd;
-                    }
-                    else if ((codePoint > 0xfdd0 && codePoint <= 0xfdef) || (codePoint & 0xfffe) === 0xfffe) ;
-                    else if ((codePoint >= 0x01 && codePoint <= 0x08) ||
-                        codePoint === 0x0b ||
-                        (codePoint >= 0x0d && codePoint <= 0x1f) ||
-                        (codePoint >= 0x7f && codePoint <= 0x9f)) {
-                        codePoint = CCR_REPLACEMENTS[codePoint] || codePoint;
-                    }
-                    // 解码
-                    var char = String.fromCodePoint(codePoint);
-                    decodedText += char;
-                    advance(body[0].length);
-                }
-                else { // 无匹配则直接当作文本处理
-                    decodedText += head[0];
-                    advance(head[0].length);
-                }
-            }
-        }
-        return decodedText;
     }
 
     /**
@@ -3318,7 +3320,6 @@
             var templateAST = parse(source); // 编译HTML模版为模版AST
             var jsAST = transform(templateAST); // 将模版AST转换为jsAST
             var code = generate(jsAST); // 根据jsAST生成渲染函数代码
-            console.log(code);
             this.$vm.$render = createFunction(code, this.$vm);
         };
         return Compiler;
@@ -3534,6 +3535,62 @@
             el.setAttribute(key, newValue);
         }
     }
+
+    /**
+     * 完成vnode的挂载更新
+     * @param oldVNode 原vnode
+     * @param newVNode 需要挂载更新的vnode
+     * @param container 渲染容器
+     */
+    function patch(oldVNode, newVNode, container) {
+        // 若新旧vnode类型不同，则卸载并重新挂载
+        if (oldVNode && oldVNode.type !== newVNode.type) {
+            unmountElement(oldVNode);
+            oldVNode = null;
+        }
+        var vnodeType = typeof newVNode.type;
+        if (vnodeType === 'string') { // vnode为普通标签
+            if (!oldVNode || !oldVNode.el) {
+                mountElement(newVNode, container); // 挂载vnode
+            }
+            else {
+                updateElement(oldVNode, newVNode); // 更新vnode
+            }
+        }
+        else if (vnodeType === 'object') ;
+        else if (vnodeType === 'symbol') { // 标准普通标签以外的标签
+            if (newVNode.type === TextVnodeSymbol) { // 文本节点
+                if (typeof newVNode.children !== 'string') {
+                    error("text node requires children being type of \"string\", received type ".concat(typeof newVNode.children), newVNode);
+                }
+                if (!oldVNode) {
+                    var el = newVNode.el = document.createTextNode(newVNode.children);
+                    container.insertBefore(el, null);
+                }
+                else { // 若原节点存在则更新
+                    var el = newVNode.el = oldVNode.el;
+                    if (newVNode.children !== oldVNode.children) {
+                        el.nodeValue = newVNode.children;
+                    }
+                }
+            }
+            else if (newVNode.type === CommentVnodeSymbol) { // 注释节点
+                if (typeof newVNode.children !== 'string') {
+                    error("comment node requires children being type of \"string\", received type ".concat(typeof newVNode.children), newVNode);
+                }
+                if (!oldVNode) {
+                    var el = newVNode.el = document.createComment(newVNode.children);
+                    container.insertBefore(el, null);
+                }
+                else { // 若原节点存在则更新
+                    var el = newVNode.el = oldVNode.el;
+                    if (newVNode.children !== oldVNode.children) {
+                        el.nodeValue = newVNode.children;
+                    }
+                }
+            }
+        }
+    }
     /**
      * 将vnode挂载到真实dom
      * @param vnode 需要挂载的vnode
@@ -3669,61 +3726,6 @@
             unmountElement(oldVNode);
         }
     }
-    /**
-     * 完成vnode的挂载更新
-     * @param oldVNode 原vnode
-     * @param newVNode 需要挂载更新的vnode
-     * @param container 渲染容器
-     */
-    function patch(oldVNode, newVNode, container) {
-        // 若新旧vnode类型不同，则卸载并重新挂载
-        if (oldVNode && oldVNode.type !== newVNode.type) {
-            unmountElement(oldVNode);
-            oldVNode = null;
-        }
-        var vnodeType = typeof newVNode.type;
-        if (vnodeType === 'string') { // vnode为普通标签
-            if (!oldVNode || !oldVNode.el) {
-                mountElement(newVNode, container); // 挂载vnode
-            }
-            else {
-                updateElement(oldVNode, newVNode); // 更新vnode
-            }
-        }
-        else if (vnodeType === 'object') ;
-        else if (vnodeType === 'symbol') { // 标准普通标签以外的标签
-            if (newVNode.type === TextVnodeSymbol) { // 文本节点
-                if (typeof newVNode.children !== 'string') {
-                    error("text node requires children being type of \"string\", received type ".concat(typeof newVNode.children), newVNode);
-                }
-                if (!oldVNode) {
-                    var el = newVNode.el = document.createTextNode(newVNode.children);
-                    container.insertBefore(el, null);
-                }
-                else { // 若原节点存在则更新
-                    var el = newVNode.el = oldVNode.el;
-                    if (newVNode.children !== oldVNode.children) {
-                        el.nodeValue = newVNode.children;
-                    }
-                }
-            }
-            else if (newVNode.type === CommentVnodeSymbol) { // 注释节点
-                if (typeof newVNode.children !== 'string') {
-                    error("comment node requires children being type of \"string\", received type ".concat(typeof newVNode.children), newVNode);
-                }
-                if (!oldVNode) {
-                    var el = newVNode.el = document.createComment(newVNode.children);
-                    container.insertBefore(el, null);
-                }
-                else { // 若原节点存在则更新
-                    var el = newVNode.el = oldVNode.el;
-                    if (newVNode.children !== oldVNode.children) {
-                        el.nodeValue = newVNode.children;
-                    }
-                }
-            }
-        }
-    }
 
     /**
      * 创建一个渲染器
@@ -3827,6 +3829,37 @@
     }
 
     /**
+     * 创建一个基于响应式对象的保留其响应式能力的属性
+     * @param target 目标响应式对象
+     * @param key 目标键
+     */
+    function toRef(target, key) {
+        var wrapper = {
+            get value() {
+                return target[key];
+            },
+            set value(val) {
+                target[key] = val;
+            }
+        };
+        // 标识是否为ref对象
+        Object.defineProperty(wrapper, '_is_Ref_', {
+            value: true
+        });
+        return wrapper;
+    }
+    /**
+     * 响应式对象转换，使所有键都具有响应式能力
+     * @param target 目标响应式对象
+     */
+    function toRefs(target) {
+        var ret = {};
+        for (var key in target) {
+            ret[key] = toRef(target, key);
+        }
+        return ret;
+    }
+    /**
      * 创建一个代理对象，在其中可以自动脱ref
      * @param target 目标对象
      */
@@ -3834,7 +3867,6 @@
         return new Proxy(target, {
             get: function (target, p, receiver) {
                 var value = Reflect.get(target, p, receiver);
-                // console.log(target, p, value)
                 return (value && value._is_Ref_) ? value.value : value; // 若为ref型对象则返回其value
             },
             set: function (target, p, newValue, receiver) {
@@ -3957,7 +3989,10 @@
             isLazy: true,
             scheduler: function () {
                 var data = effectFn();
-                newValue = (data._is_Ref_) ? data.value : __assign({}, data); // 防止与oldValue引用同一对象
+                newValue = (data._is_Ref_)
+                    ? data.value
+                    : (typeof data === 'object'
+                        ? __assign({}, data) : data);
                 if (onExpiredHandler)
                     onExpiredHandler(); // 若注册了过期函数则在回调前执行
                 callback(newValue, oldValue, onExpired);
@@ -4065,8 +4100,11 @@
     exports.DdBind = DdBind;
     exports.computed = computed;
     exports.createApp = createApp;
+    exports.effect = effect;
+    exports.proxyRefs = proxyRefs;
     exports.reactive = reactive;
     exports.ref = ref;
+    exports.toRefs = toRefs;
     exports.watch = watch;
 
 }));

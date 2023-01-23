@@ -1,10 +1,9 @@
 import {parse} from "compiler/parser";
-import {ExpressionNode, PropNode, TemplateAST} from "types/compiler";
 
 describe('parser', () => {
     // 测试单个元素解析
     it('parse simple element', () => {
-        const ast: TemplateAST = parse('<h1>hello world</h1>')
+        const ast = parse('<h1>hello world</h1>')
         expect(ast.type).toBe('Root')
         expect(ast.children[0].type).toBe('Element')
         expect(ast.children[0].tag).toBe('h1')
@@ -22,8 +21,8 @@ describe('parser', () => {
             content: {
                 content: 'msg',
                 type: 'Expression'
-            } as ExpressionNode
-        } as TemplateAST)
+            }
+        })
     })
     // 测试自闭合标签解析
     it('parse self-closing element', () => {
@@ -41,7 +40,7 @@ describe('parser', () => {
             type: 'Attribute',
             name: 'class',
             value: 'test'
-        } as PropNode)
+        })
     })
     // 测试指令解析
     it('parse directive attr', () => {
@@ -52,10 +51,10 @@ describe('parser', () => {
             exp: {
                 content: "['test']",
                 type: "Expression",
-            } as ExpressionNode,
+            },
             name: "_class_",
             type: "ReactiveProp",
-        } as PropNode)
+        })
     })
     // 测试HTML引用字符串解析
     it('parse HTML referred string', () => {
@@ -65,6 +64,6 @@ describe('parser', () => {
         expect(ast.children[0].children).toContainEqual({
             type: 'Text',
             content: '<'
-        } as TemplateAST)
+        })
     })
 })

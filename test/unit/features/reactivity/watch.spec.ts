@@ -35,10 +35,11 @@ describe('reactivity/watch', () => {
     })
     // watch自动脱ref
     test ('automatically off ref when being watched', () => {
-        let count: number
+        let count: number = 0
         const data = ref(0)
 
         watch(data, (newValue) => {
+            console.log(newValue)
             count = newValue
         })
 

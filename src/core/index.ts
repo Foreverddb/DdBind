@@ -1,6 +1,4 @@
 export {
-    EffectFunction,
-    EffectOption,
     effect,
     trigger,
     track,

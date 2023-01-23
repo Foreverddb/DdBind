@@ -1,4 +1,4 @@
-import {DdBindOptions} from "types/ddbind";
+import {DdBindOptions, DdBindVm} from "types/ddbind";
 import {Compiler} from "compiler/index";
 import {Container, Renderer, VNode} from "types/renderer";
 import {effect} from "core/effect";
@@ -10,7 +10,7 @@ import {watch} from "reactivity/watch";
 /**
  * app对象，同时也是响应式数据绑定this的vm对象
  */
-export class DdBind {
+export class DdBind implements DdBindVm{
 
     $template: string
 

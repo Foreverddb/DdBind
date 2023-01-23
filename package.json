@@ -1,14 +1,25 @@
 {
   "name": "ddbind",
   "version": "1.0.0",
+  "type": "module",
   "author": {
     "name": "ForeverDdB",
     "url": "https://github.com/Foreverddb"
   },
-  "description": "a MVVM framework",
+  "description": "A simple, easy-to-use MVVM framework for browser and es module.",
   "browser": "dist/ddbind.browser.prod.js",
   "module": "dist/ddbind.node.prod.js",
+  "main": "dist/ddbind.node.prod.js",
   "typings": "types/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "node": "./dist/ddbind.node.prod.js",
+        "default": "./dist/ddbind.node.prod.js"
+      },
+      "types": "./types/index.d.ts"
+    }
+  },
   "scripts": {
     "dev:browser": "rollup -w -c scripts/config.js --environment BROWSER:true",
     "dev:node": "rollup -w -c scripts/config.js --environment BROWSER:false",
@@ -21,8 +32,12 @@
     "url": "https://github.com/Foreverddb/DdBind.git"
   },
   "bugs": "https://github.com/Foreverddb/DdBind/issues",
-  "keywords": ["ddbind", "mvvm"],
+  "keywords": [
+    "ddbind",
+    "mvvm"
+  ],
   "license": "ISC",
+  "types": "types/index.d.ts",
   "devDependencies": {
     "@rollup/plugin-replace": "^5.0.2",
     "jasmine": "^4.5.0",

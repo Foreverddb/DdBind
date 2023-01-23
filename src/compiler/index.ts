@@ -1,12 +1,12 @@
 import {DdBind} from "DdBind";
 import {parse} from "compiler/parser";
-import {JavascriptNode, TemplateAST} from "types/compiler";
+import {iCompiler, JavascriptNode, TemplateAST} from "types/compiler";
 import {transform} from "compiler/transformer";
 import {generate} from "compiler/generator";
 import {error} from "utils/debug";
 import {createTextVnode, createVnode, stringVal} from "renderer/utils";
 
-export class Compiler {
+export class Compiler implements iCompiler{
     $el: HTMLElement
     $vm: DdBind
 

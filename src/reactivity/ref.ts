@@ -6,7 +6,7 @@ import {RefObj} from "types/reactivity";
  * @param target 目标响应式对象
  * @param key 目标键
  */
-function toRef(target: object, key): RefObj<any> {
+export function toRef(target: object, key): RefObj<any> {
     const wrapper: RefObj<any> = {
         get value() {
             return target[key]
@@ -28,7 +28,7 @@ function toRef(target: object, key): RefObj<any> {
  * 响应式对象转换，使所有键都具有响应式能力
  * @param target 目标响应式对象
  */
-export function toRefs(target: object) {
+export function toRefs(target: object): object {
     const ret = {}
     for (const key in target) {
         ret[key] = toRef(target, key)

@@ -2386,28 +2386,6 @@ function generate(jsAST) {
 }
 
 /**
- * 针对directives指令部分转换代码表达式
- * @param directives 指令节点
- * @param context 上下文对象
- */
-function transformEventDirectiveExpression(directives, context) {
-    // 过滤节点数组
-    directives.filter(x => x.type === 'Directive').forEach((directive) => {
-        genDirectiveExpression(directive, context);
-    });
-}
-/**
- * 根据指令内容生成JsAST
- * @param directive 目标指令节点
- * @param context 上下文对象
- */
-function genDirectiveExpression(directive, context) {
-    // 除去开头的d-
-    const directiveName = directive.name.slice(2, directive.name.length);
-    // 处理handler并进行转换操作
-    directiveHandler[directiveName + 'Handler'](directive, context);
-}
-/**
  * directive的处理函数列表
  */
 const directiveHandler = {
@@ -2432,6 +2410,29 @@ const directiveHandler = {
         context.attrs.push(createKeyValueObjectNode('innerHTML', directive.exp.content, 'StringLiteral'));
     }
 };
+
+/**
+ * 针对directives指令部分转换代码表达式
+ * @param directives 指令节点
+ * @param context 上下文对象
+ */
+function transformEventDirectiveExpression(directives, context) {
+    // 过滤节点数组
+    directives.filter(x => x.type === 'Directive').forEach((directive) => {
+        genDirectiveExpression(directive, context);
+    });
+}
+/**
+ * 根据指令内容生成JsAST
+ * @param directive 目标指令节点
+ * @param context 上下文对象
+ */
+function genDirectiveExpression(directive, context) {
+    // 除去开头的d-
+    const directiveName = directive.name.slice(2, directive.name.length);
+    // 处理handler并进行转换操作
+    directiveHandler[directiveName + 'Handler'](directive, context);
+}
 
 /**
  * 解析指令属性并返回解析结果作为目标节点对象
@@ -2494,6 +2495,110 @@ function parseDirectives(propName, propValue) {
         };
     }
     return prop;
+}
+
+/**
+ * 解析HTML中的引用字符
+ * @param rawText 需要解码的文本
+ * @param asAttr 是否用于解码属性值
+ */
+function decodeHTMLText(rawText, asAttr = false) {
+    let offset = 0;
+    // 存放解码后的文本结果
+    let decodedText = '';
+    const endIndex = rawText.length;
+    // advance 消费指定长度的文本
+    function advance(length) {
+        offset += length;
+        rawText = rawText.slice(length);
+    }
+    while (offset < endIndex) {
+        // 校验字符引用方式
+        // &为命名字符引用
+        // &#为十进制数字字符引用
+        // &#x为十六进制数字字符引用
+        const head = HTML_REFERENCE_HEAD_REG.exec(rawText);
+        // 无匹配则说明无需解码
+        if (!head) {
+            const remaining = endIndex - offset;
+            decodedText += rawText.slice(0, remaining);
+            advance(remaining);
+            break;
+        }
+        decodedText += rawText.slice(0, head.index);
+        advance(head.index); // 消费&前的内容
+        if (head[0] === '&') {
+            let name = '';
+            let value = undefined;
+            if (ALPHABET_OR_NUMBER_REG.test(rawText[1])) {
+                // 依次从最长到最短查表寻找匹配的引用字符名称
+                for (let length = decodeMapKeyMaxLen; !value && length > 0; --length) {
+                    name = rawText.slice(1, 1 + length);
+                    value = decodeMap[name];
+                }
+                if (value) {
+                    const semi = (rawText[1 + name.length] || '') === ';';
+                    // 如果解码的文本作为属性值，最后一个匹配的字符不是分号，
+                    // 并且最后一个匹配字符的下一个字符是等于号(=)、ASCII 字母或数字，
+                    // 将字符 & 和实体名称 name 作为普通文本
+                    if (asAttr &&
+                        !semi &&
+                        /[=a-z0-9]/i.test(rawText[1 + name.length] || '')) {
+                        decodedText += '&' + name;
+                        advance(1 + name.length);
+                    }
+                    else {
+                        decodedText += value;
+                        advance(semi ? 2 + name.length : 1 + name.length); // 由于查找键时未包含分号，若末尾有分号需同时消费掉
+                    }
+                }
+                else { // 解码失败，无对应值
+                    decodedText += '&' + name;
+                    advance(1 + name.length);
+                }
+            }
+            else {
+                decodedText += '&';
+                advance(1);
+            }
+        }
+        else {
+            // 根据引用头判断数字的引用进制
+            const isHex = head[0] === '&#x';
+            const pattern = isHex ? HTML_REFERENCE_HEX_REG : HTML_REFERENCE_NUMBER_REG;
+            const body = pattern.exec(rawText); // 匹配得到unicode码值
+            if (body) {
+                // 根据进制将转为改为数字
+                let codePoint = parseInt(body[1], isHex ? 16 : 10);
+                // 检查unicode值合法性并进行替换
+                if (codePoint === 0) {
+                    codePoint = 0xfffd;
+                }
+                else if (codePoint > 0x10ffff) {
+                    codePoint = 0xfffd;
+                }
+                else if (codePoint > 0xd800 && codePoint < 0xdfff) {
+                    codePoint = 0xfffd;
+                }
+                else if ((codePoint > 0xfdd0 && codePoint <= 0xfdef) || (codePoint & 0xfffe) === 0xfffe) ;
+                else if ((codePoint >= 0x01 && codePoint <= 0x08) ||
+                    codePoint === 0x0b ||
+                    (codePoint >= 0x0d && codePoint <= 0x1f) ||
+                    (codePoint >= 0x7f && codePoint <= 0x9f)) {
+                    codePoint = CCR_REPLACEMENTS[codePoint] || codePoint;
+                }
+                // 解码
+                const char = String.fromCodePoint(codePoint);
+                decodedText += char;
+                advance(body[0].length);
+            }
+            else { // 无匹配则直接当作文本处理
+                decodedText += head[0];
+                advance(head[0].length);
+            }
+        }
+    }
+    return decodedText;
 }
 
 /**
@@ -2724,109 +2829,6 @@ function parseText(context) {
         type: 'Text',
         content: decodeHTMLText(content)
     };
-}
-/**
- * 解析HTML中的引用字符
- * @param rawText 需要解码的文本
- * @param asAttr 是否用于解码属性值
- */
-function decodeHTMLText(rawText, asAttr = false) {
-    let offset = 0;
-    // 存放解码后的文本结果
-    let decodedText = '';
-    const endIndex = rawText.length;
-    // advance 消费指定长度的文本
-    function advance(length) {
-        offset += length;
-        rawText = rawText.slice(length);
-    }
-    while (offset < endIndex) {
-        // 校验字符引用方式
-        // &为命名字符引用
-        // &#为十进制数字字符引用
-        // &#x为十六进制数字字符引用
-        const head = HTML_REFERENCE_HEAD_REG.exec(rawText);
-        // 无匹配则说明无需解码
-        if (!head) {
-            const remaining = endIndex - offset;
-            decodedText += rawText.slice(0, remaining);
-            advance(remaining);
-            break;
-        }
-        decodedText += rawText.slice(0, head.index);
-        advance(head.index); // 消费&前的内容
-        if (head[0] === '&') {
-            let name = '';
-            let value = undefined;
-            if (ALPHABET_OR_NUMBER_REG.test(rawText[1])) {
-                // 依次从最长到最短查表寻找匹配的引用字符名称
-                for (let length = decodeMapKeyMaxLen; !value && length > 0; --length) {
-                    name = rawText.slice(1, 1 + length);
-                    value = decodeMap[name];
-                }
-                if (value) {
-                    const semi = (rawText[1 + name.length] || '') === ';';
-                    // 如果解码的文本作为属性值，最后一个匹配的字符不是分号，
-                    // 并且最后一个匹配字符的下一个字符是等于号(=)、ASCII 字母或数字，
-                    // 将字符 & 和实体名称 name 作为普通文本
-                    if (asAttr &&
-                        !semi &&
-                        /[=a-z0-9]/i.test(rawText[1 + name.length] || '')) {
-                        decodedText += '&' + name;
-                        advance(1 + name.length);
-                    }
-                    else {
-                        decodedText += value;
-                        advance(semi ? 2 + name.length : 1 + name.length); // 由于查找键时未包含分号，若末尾有分号需同时消费掉
-                    }
-                }
-                else { // 解码失败，无对应值
-                    decodedText += '&' + name;
-                    advance(1 + name.length);
-                }
-            }
-            else {
-                decodedText += '&';
-                advance(1);
-            }
-        }
-        else {
-            // 根据引用头判断数字的引用进制
-            const isHex = head[0] === '&#x';
-            const pattern = isHex ? HTML_REFERENCE_HEX_REG : HTML_REFERENCE_NUMBER_REG;
-            const body = pattern.exec(rawText); // 匹配得到unicode码值
-            if (body) {
-                // 根据进制将转为改为数字
-                let codePoint = parseInt(body[1], isHex ? 16 : 10);
-                // 检查unicode值合法性并进行替换
-                if (codePoint === 0) {
-                    codePoint = 0xfffd;
-                }
-                else if (codePoint > 0x10ffff) {
-                    codePoint = 0xfffd;
-                }
-                else if (codePoint > 0xd800 && codePoint < 0xdfff) {
-                    codePoint = 0xfffd;
-                }
-                else if ((codePoint > 0xfdd0 && codePoint <= 0xfdef) || (codePoint & 0xfffe) === 0xfffe) ;
-                else if ((codePoint >= 0x01 && codePoint <= 0x08) ||
-                    codePoint === 0x0b ||
-                    (codePoint >= 0x0d && codePoint <= 0x1f) ||
-                    (codePoint >= 0x7f && codePoint <= 0x9f)) {
-                    codePoint = CCR_REPLACEMENTS[codePoint] || codePoint;
-                }
-                // 解码
-                const char = String.fromCodePoint(codePoint);
-                decodedText += char;
-                advance(body[0].length);
-            }
-            else { // 无匹配则直接当作文本处理
-                decodedText += head[0];
-                advance(head[0].length);
-            }
-        }
-    }
-    return decodedText;
 }
 
 /**
@@ -3303,7 +3305,6 @@ class Compiler {
         const templateAST = parse(source); // 编译HTML模版为模版AST
         const jsAST = transform(templateAST); // 将模版AST转换为jsAST
         const code = generate(jsAST); // 根据jsAST生成渲染函数代码
-        console.log(code);
         this.$vm.$render = createFunction(code, this.$vm);
     }
 }
@@ -3517,6 +3518,62 @@ function patchProps(el, key, oldValue, newValue) {
         el.setAttribute(key, newValue);
     }
 }
+
+/**
+ * 完成vnode的挂载更新
+ * @param oldVNode 原vnode
+ * @param newVNode 需要挂载更新的vnode
+ * @param container 渲染容器
+ */
+function patch(oldVNode, newVNode, container) {
+    // 若新旧vnode类型不同，则卸载并重新挂载
+    if (oldVNode && oldVNode.type !== newVNode.type) {
+        unmountElement(oldVNode);
+        oldVNode = null;
+    }
+    const vnodeType = typeof newVNode.type;
+    if (vnodeType === 'string') { // vnode为普通标签
+        if (!oldVNode || !oldVNode.el) {
+            mountElement(newVNode, container); // 挂载vnode
+        }
+        else {
+            updateElement(oldVNode, newVNode); // 更新vnode
+        }
+    }
+    else if (vnodeType === 'object') ;
+    else if (vnodeType === 'symbol') { // 标准普通标签以外的标签
+        if (newVNode.type === TextVnodeSymbol) { // 文本节点
+            if (typeof newVNode.children !== 'string') {
+                error(`text node requires children being type of "string", received type ${typeof newVNode.children}`, newVNode);
+            }
+            if (!oldVNode) {
+                const el = newVNode.el = document.createTextNode(newVNode.children);
+                container.insertBefore(el, null);
+            }
+            else { // 若原节点存在则更新
+                const el = newVNode.el = oldVNode.el;
+                if (newVNode.children !== oldVNode.children) {
+                    el.nodeValue = newVNode.children;
+                }
+            }
+        }
+        else if (newVNode.type === CommentVnodeSymbol) { // 注释节点
+            if (typeof newVNode.children !== 'string') {
+                error(`comment node requires children being type of "string", received type ${typeof newVNode.children}`, newVNode);
+            }
+            if (!oldVNode) {
+                const el = newVNode.el = document.createComment(newVNode.children);
+                container.insertBefore(el, null);
+            }
+            else { // 若原节点存在则更新
+                const el = newVNode.el = oldVNode.el;
+                if (newVNode.children !== oldVNode.children) {
+                    el.nodeValue = newVNode.children;
+                }
+            }
+        }
+    }
+}
 /**
  * 将vnode挂载到真实dom
  * @param vnode 需要挂载的vnode
@@ -3652,61 +3709,6 @@ function updateElement(oldVNode, newVNode) {
         unmountElement(oldVNode);
     }
 }
-/**
- * 完成vnode的挂载更新
- * @param oldVNode 原vnode
- * @param newVNode 需要挂载更新的vnode
- * @param container 渲染容器
- */
-function patch(oldVNode, newVNode, container) {
-    // 若新旧vnode类型不同，则卸载并重新挂载
-    if (oldVNode && oldVNode.type !== newVNode.type) {
-        unmountElement(oldVNode);
-        oldVNode = null;
-    }
-    const vnodeType = typeof newVNode.type;
-    if (vnodeType === 'string') { // vnode为普通标签
-        if (!oldVNode || !oldVNode.el) {
-            mountElement(newVNode, container); // 挂载vnode
-        }
-        else {
-            updateElement(oldVNode, newVNode); // 更新vnode
-        }
-    }
-    else if (vnodeType === 'object') ;
-    else if (vnodeType === 'symbol') { // 标准普通标签以外的标签
-        if (newVNode.type === TextVnodeSymbol) { // 文本节点
-            if (typeof newVNode.children !== 'string') {
-                error(`text node requires children being type of "string", received type ${typeof newVNode.children}`, newVNode);
-            }
-            if (!oldVNode) {
-                const el = newVNode.el = document.createTextNode(newVNode.children);
-                container.insertBefore(el, null);
-            }
-            else { // 若原节点存在则更新
-                const el = newVNode.el = oldVNode.el;
-                if (newVNode.children !== oldVNode.children) {
-                    el.nodeValue = newVNode.children;
-                }
-            }
-        }
-        else if (newVNode.type === CommentVnodeSymbol) { // 注释节点
-            if (typeof newVNode.children !== 'string') {
-                error(`comment node requires children being type of "string", received type ${typeof newVNode.children}`, newVNode);
-            }
-            if (!oldVNode) {
-                const el = newVNode.el = document.createComment(newVNode.children);
-                container.insertBefore(el, null);
-            }
-            else { // 若原节点存在则更新
-                const el = newVNode.el = oldVNode.el;
-                if (newVNode.children !== oldVNode.children) {
-                    el.nodeValue = newVNode.children;
-                }
-            }
-        }
-    }
-}
 
 /**
  * 创建一个渲染器
@@ -3810,6 +3812,37 @@ function reactive(value) {
 }
 
 /**
+ * 创建一个基于响应式对象的保留其响应式能力的属性
+ * @param target 目标响应式对象
+ * @param key 目标键
+ */
+function toRef(target, key) {
+    const wrapper = {
+        get value() {
+            return target[key];
+        },
+        set value(val) {
+            target[key] = val;
+        }
+    };
+    // 标识是否为ref对象
+    Object.defineProperty(wrapper, '_is_Ref_', {
+        value: true
+    });
+    return wrapper;
+}
+/**
+ * 响应式对象转换，使所有键都具有响应式能力
+ * @param target 目标响应式对象
+ */
+function toRefs(target) {
+    const ret = {};
+    for (const key in target) {
+        ret[key] = toRef(target, key);
+    }
+    return ret;
+}
+/**
  * 创建一个代理对象，在其中可以自动脱ref
  * @param target 目标对象
  */
@@ -3817,7 +3850,6 @@ function proxyRefs(target) {
     return new Proxy(target, {
         get(target, p, receiver) {
             const value = Reflect.get(target, p, receiver);
-            // console.log(target, p, value)
             return (value && value._is_Ref_) ? value.value : value; // 若为ref型对象则返回其value
         },
         set(target, p, newValue, receiver) {
@@ -3913,7 +3945,10 @@ function watch(target, callback) {
         isLazy: true,
         scheduler: () => {
             let data = effectFn();
-            newValue = (data._is_Ref_) ? data.value : Object.assign({}, data); // 防止与oldValue引用同一对象
+            newValue = (data._is_Ref_)
+                ? data.value
+                : (typeof data === 'object'
+                    ? Object.assign({}, data) : data);
             if (onExpiredHandler)
                 onExpiredHandler(); // 若注册了过期函数则在回调前执行
             callback(newValue, oldValue, onExpired);
@@ -4016,4 +4051,4 @@ function createApp(options) {
     return proxyRefs(new DdBind(options));
 }
 
-export { DdBind, computed, createApp, reactive, ref, watch };
+export { DdBind, computed, createApp, effect, proxyRefs, reactive, ref, toRefs, watch };

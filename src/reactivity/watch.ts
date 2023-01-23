@@ -1,13 +1,6 @@
 import {effect} from "core/effect";
 import {warn} from "utils/debug";
-import {RefObj} from "types/reactivity";
-
-/**
- * 侦听属性的回调函数类型
- */
-interface WatchCallback<T> {
-    (newValue: T, oldValue: T, onExpired: (fn: () => {}) => any): any
-}
+import {RefObj, WatchCallback} from "types/reactivity";
 
 /**
  * 遍历对象属性使其绑定响应

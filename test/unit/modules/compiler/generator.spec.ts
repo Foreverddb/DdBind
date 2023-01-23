@@ -1,10 +1,9 @@
-import {TemplateAST} from "types/compiler";
 import {parse} from "compiler/parser";
 import {transform} from "compiler/transformer";
 import {generate} from "compiler/generator";
 
 const generateCode = (str: string): string => {
-    const template: TemplateAST = parse(str)
+    const template = parse(str)
     const ast: any = transform(template)
     return generate(ast)
 }

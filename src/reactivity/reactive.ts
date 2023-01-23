@@ -1,5 +1,5 @@
 import {track, trigger} from "core/effect";
-import {error} from "../utils/debug";
+import {error} from "utils/debug";
 
 const reactiveMap: Map<object, object> = new Map()
 

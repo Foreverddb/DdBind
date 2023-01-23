@@ -1,3 +1,4 @@
+declare module 'types/renderer'
 export type Renderer = {
     render: (vnode, container) => any
 }

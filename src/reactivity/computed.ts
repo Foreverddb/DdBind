@@ -1,12 +1,6 @@
-import {effect, EffectFunction, track, trigger} from "core/index";
-import {RefObj} from "types/reactivity";
-
-/**
- * 计算属性对象的value应为只读，其只能通过getter的返回值获取
- */
-class Computed<T = any> implements RefObj<T>{
-    readonly value: T
-}
+import {effect, track, trigger} from "core/index";
+import {Computed} from "types/reactivity";
+import {EffectFunction} from "types/effect";
 
 /**
  * 创建一个计算属性

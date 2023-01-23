@@ -1,4 +1,4 @@
-import {FunctionDeclNode, TemplateAST, TransformerContext} from "types/compiler";
+import {FunctionDeclNode, TemplateAST, TransformerContext} from "types";
 import {traverseNode} from "compiler/transformer/traverse";
 import {
     transformComment,
