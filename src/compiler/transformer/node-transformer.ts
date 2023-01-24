@@ -98,12 +98,6 @@ function createKeyValueObjectNode(key: string, value: string | ArgumentNode, typ
     } else if (typeof value !== 'string'){
         // 若value为已构建好的ast则直接传入
         last = value
-    } else if (__DEV__){
-        error(`the function createKeyValueObjectNode requires either an ArgumentNode as value param or a type for the third param`, {
-            key,
-            value,
-            type
-        })
     }
 
     return createPairNode(

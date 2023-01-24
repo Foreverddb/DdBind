@@ -24,7 +24,7 @@
     "dev:browser": "rollup -w -c scripts/config.js --environment BROWSER:true",
     "dev:node": "rollup -w -c scripts/config.js --environment BROWSER:false",
     "build": "node scripts/build.js",
-    "test:unit": "vitest test/unit"
+    "test:unit": "vitest test/unit --coverage"
   },
   "homepage": "https://github.com/Foreverddb/DdBind#readme",
   "repository": {
@@ -48,6 +48,7 @@
     "rollup-plugin-typescript2": "^0.34.1",
     "terser": "^5.16.1",
     "typescript": "^4.9.4",
-    "vitest": "^0.27.2"
+    "vitest": "^0.27.2",
+    "@vitest/coverage-c8": "^0.28.1"
   }
 }
