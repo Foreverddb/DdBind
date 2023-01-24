@@ -21,9 +21,9 @@
     }
   },
   "scripts": {
-    "dev:browser": "rollup -w -c scripts/config.js --environment BROWSER:true",
-    "dev:node": "rollup -w -c scripts/config.js --environment BROWSER:false",
-    "build": "node scripts/build.js",
+    "dev:browser": "rollup -w -c scripts/config.cjs --environment BROWSER:true",
+    "dev:node": "rollup -w -c scripts/config.cjs --environment BROWSER:false",
+    "build": "node scripts/build.cjs",
     "test:unit": "vitest test/unit --coverage"
   },
   "homepage": "https://github.com/Foreverddb/DdBind#readme",
@@ -36,7 +36,7 @@
     "ddbind",
     "mvvm"
   ],
-  "license": "ISC",
+  "license": "MIT",
   "types": "types/index.d.ts",
   "devDependencies": {
     "@rollup/plugin-replace": "^5.0.2",

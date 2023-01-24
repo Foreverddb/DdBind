@@ -9,7 +9,7 @@ import {
     ReturnStatementNode,
     TemplateAST
 } from "types/compiler";
-import {error, warn} from "utils/debug";
+import {warn} from "utils/debug";
 import {transformEventDirectiveExpression} from "compiler/directives";
 import {JS_VARIABLE_NAME_VALIDATOR} from "compiler/transformer/regexp";
 

@@ -1,11 +1,11 @@
 import {
-    GeneratorContext,
-    FunctionDeclNode,
-    JavascriptNode,
-    ReturnStatementNode,
-    CallExpressionNode,
     ArgumentNode,
-    PairNode
+    CallExpressionNode,
+    FunctionDeclNode,
+    GeneratorContext,
+    JavascriptNode,
+    PairNode,
+    ReturnStatementNode
 } from "types/compiler";
 
 /**
@@ -110,7 +110,10 @@ function genNodeList(nodes: Array<JavascriptNode>, context: GeneratorContext) {
 function genStringLiteral(node: ArgumentNode, context: GeneratorContext) {
     const {push} = context
     // 去除换行符以免影响代码运行
-    node.value = (node.value as string).replaceAll(/\n/g, ' ')
+    node.value = (node.value as string)
+        .replaceAll(/\n/g, ' ')
+        // 转义单引号以防止引号冲突
+        .replaceAll(/'/g, `\\'`)
     // 对于字符串字面量，只需要追加与 node.value 对应的字符串即可
     push(`'${node.value}'`)
 }

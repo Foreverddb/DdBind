@@ -1,7 +1,7 @@
 const fs = require('fs')
 const rollup = require('rollup')
 const path = require('path')
-const configs = require('./config')
+const configs = require('./config.cjs')
 const terser = require('terser')
 
 if (!fs.existsSync('dist')) {

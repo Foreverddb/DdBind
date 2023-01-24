@@ -2293,7 +2293,10 @@ function genNodeList(nodes, context) {
 function genStringLiteral(node, context) {
     const { push } = context;
     // 去除换行符以免影响代码运行
-    node.value = node.value.replaceAll(/\n/g, ' ');
+    node.value = node.value
+        .replaceAll(/\n/g, ' ')
+        // 转义单引号以防止引号冲突
+        .replaceAll(/'/g, `\\'`);
     // 对于字符串字面量，只需要追加与 node.value 对应的字符串即可
     push(`'${node.value}'`);
 }
@@ -2985,13 +2988,6 @@ function createKeyValueObjectNode(key, value, type) {
         // 若value为已构建好的ast则直接传入
         last = value;
     }
-    else {
-        error(`the function createKeyValueObjectNode requires either an ArgumentNode as value param or a type for the third param`, {
-            key,
-            value,
-            type
-        });
-    }
     return createPairNode(first, last);
 }
 /**
@@ -3305,6 +3301,7 @@ class Compiler {
         const templateAST = parse(source); // 编译HTML模版为模版AST
         const jsAST = transform(templateAST); // 将模版AST转换为jsAST
         const code = generate(jsAST); // 根据jsAST生成渲染函数代码
+        console.log(code);
         this.$vm.$render = createFunction(code, this.$vm);
     }
 }
