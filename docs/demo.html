@@ -14,8 +14,9 @@
 <div id="app">
     <div>
         <h1>
-            <span d-if="foo === 'bar'">I will hide if foo not start with 'bar'</span>
+            <span d-if="foo === 'bar'">I will hide if foo not equal 'bar'</span>
         </h1>
+        <label>I will be password type if foo not start with 'bar'</label>
         <input :class="['test', 'test2']" :placeholder="re.text" d-model="foo"
                :type="foo.startsWith('bar') ? 'text' : 'password'"/>
         <div :style="[{color: 'red'}]" id="test">

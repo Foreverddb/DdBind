@@ -1,7 +1,7 @@
 export let warn: (msg: string, source: any) => void
 export let error: (msg: string, source: any) => void
 
-if (__DEV__) {
+if (__DEV__ || __TEST__) {
     warn = (msg: string, source: any) => {
         console.warn(`[DdBind-warn]: at ${source} \n ${msg}`)
     }

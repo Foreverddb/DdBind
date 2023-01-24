@@ -13,7 +13,8 @@ export default defineConfig({
         }
     },
     define: {
-      __DEV__: false
+        __DEV__: false,
+        __TEST__: true
     },
     test: {
         globals: true,

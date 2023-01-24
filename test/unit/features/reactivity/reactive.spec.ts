@@ -94,4 +94,22 @@ describe('reactivity/reactive', () => {
         observed[2] = 'b'
         expect(spy).toHaveBeenCalledTimes(3)
     })
+    // 测试删除属性
+    it('delete observed value', () => {
+        const originalObj = {foo: 1}
+        const observed = reactive(originalObj)
+
+        const spy = vi.fn()
+
+        effect(() => {
+            observed.foo
+            spy()
+        })
+
+        expect(spy).toHaveBeenCalledTimes(1)
+
+        delete observed.foo
+        expect(spy).toHaveBeenCalledTimes(2)
+    })
+
 })
