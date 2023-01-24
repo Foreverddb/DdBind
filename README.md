@@ -10,7 +10,9 @@
 
 ## 简介
 
-**DdBind** 是一个简单的vue-like MVVM框架，实现完成了vue3的基本功能。
+**DdBind** 是一个简单的vue-like MVVM框架，实现完成了mvvm的主要功能。
+
+语法上与vue3类似，便于快速上手使用。
 
 适用于浏览器与node es module，旨在快速简单地构建用户交互界面。
 
@@ -66,7 +68,7 @@ app.mount('#app')
 
 ## Features
 
-- 测试覆盖率达95%
+- 测试覆盖率达95%以上
 - 包含类型声明，支持typescript
 - 自带runtime编译器
 - 面向esnext开发

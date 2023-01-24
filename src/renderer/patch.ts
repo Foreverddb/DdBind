@@ -10,6 +10,12 @@ import {patchProps} from "renderer/props-heleper";
  * @param container 渲染容器
  */
 export function patch(oldVNode: VNode, newVNode: VNode, container: Container): void {
+    if (!newVNode) {
+        if (oldVNode) {
+            unmountElement(oldVNode)
+        }
+        return
+    }
     // 若新旧vnode类型不同，则卸载并重新挂载
     if (oldVNode && oldVNode.type !== newVNode.type) {
         unmountElement(oldVNode)

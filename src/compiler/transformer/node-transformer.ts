@@ -10,7 +10,7 @@ import {
     TemplateAST
 } from "types/compiler";
 import {warn} from "utils/debug";
-import {transformEventDirectiveExpression} from "compiler/directives";
+import {transformDirectiveExpression} from "compiler/directives";
 import {JS_VARIABLE_NAME_VALIDATOR} from "compiler/transformer/regexp";
 
 /**
@@ -89,13 +89,13 @@ function createPairNode(first: JavascriptNode, last: JavascriptNode): PairNode {
  * @param value 值
  * @param type 值类型
  */
-function createKeyValueObjectNode(key: string, value: string | ArgumentNode, type?: 'Expression' | 'StringLiteral'): PairNode {
+export function createKeyValueObjectNode(key: string, value: string | ArgumentNode, type?: 'Expression' | 'StringLiteral'): PairNode {
     const first: ArgumentNode = createStringLiteral(key)
     let last: ArgumentNode
     // 若存在type，按type创建值ast对象
     if (type && typeof value === 'string') {
         last = type === 'StringLiteral' ? createStringLiteral(value) : createExpressionLiteral(value)
-    } else if (typeof value !== 'string'){
+    } else if (typeof value !== 'string') {
         // 若value为已构建好的ast则直接传入
         last = value
     }
@@ -250,7 +250,7 @@ export function transformElement(node: TemplateAST): () => void {
             })
 
             // 解析并转换内置指令，优先级最高，因此在解析完常规props后才进行此操作
-            transformEventDirectiveExpression(
+            transformDirectiveExpression(
                 node.props,
                 {
                     events: events,

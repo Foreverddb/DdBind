@@ -1,5 +1,5 @@
 export {
-    transformEventDirectiveExpression
+    transformDirectiveExpression
 } from './directive-transformer'
 
 export {

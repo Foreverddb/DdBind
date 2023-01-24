@@ -2419,7 +2419,7 @@ const directiveHandler = {
  * @param directives 指令节点
  * @param context 上下文对象
  */
-function transformEventDirectiveExpression(directives, context) {
+function transformDirectiveExpression(directives, context) {
     // 过滤节点数组
     directives.filter(x => x.type === 'Directive').forEach((directive) => {
         genDirectiveExpression(directive, context);
@@ -3102,7 +3102,7 @@ function transformElement(node) {
                 }
             });
             // 解析并转换内置指令，优先级最高，因此在解析完常规props后才进行此操作
-            transformEventDirectiveExpression(node.props, {
+            transformDirectiveExpression(node.props, {
                 events: events,
                 attrs: attrs,
                 createKeyValueObjectNode
@@ -3523,6 +3523,12 @@ function patchProps(el, key, oldValue, newValue) {
  * @param container 渲染容器
  */
 function patch(oldVNode, newVNode, container) {
+    if (!newVNode) {
+        if (oldVNode) {
+            unmountElement(oldVNode);
+        }
+        return;
+    }
     // 若新旧vnode类型不同，则卸载并重新挂载
     if (oldVNode && oldVNode.type !== newVNode.type) {
         unmountElement(oldVNode);

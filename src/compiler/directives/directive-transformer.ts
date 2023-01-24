@@ -1,7 +1,4 @@
-import {
-    DirectiveTransformerContext,
-    PropNode
-} from "types/compiler";
+import {DirectiveTransformerContext, PropNode} from "types/compiler";
 import {directiveHandler} from "compiler/directives/helper";
 
 /**
@@ -9,7 +6,7 @@ import {directiveHandler} from "compiler/directives/helper";
  * @param directives 指令节点
  * @param context 上下文对象
  */
-export function transformEventDirectiveExpression(directives: Array<PropNode>, context: DirectiveTransformerContext) {
+export function transformDirectiveExpression(directives: Array<PropNode>, context: DirectiveTransformerContext) {
     // 过滤节点数组
     directives.filter(x => x.type === 'Directive').forEach((directive: PropNode) => {
         genDirectiveExpression(directive, context)
