@@ -2410,7 +2410,7 @@ const directiveHandler = {
     },
     htmlHandler(directive, context) {
         const { createKeyValueObjectNode } = context;
-        context.attrs.push(createKeyValueObjectNode('innerHTML', directive.exp.content, 'StringLiteral'));
+        context.attrs.push(createKeyValueObjectNode('innerHTML', directive.exp.content, 'Expression'));
     }
 };
 
@@ -3124,9 +3124,10 @@ function transformRoot(node) {
             return;
         }
         const vnodeJSAST = node.children[0].jsNode; // 根节点只能有一个子元素
-        if (node.children.length > 1) {
-            warn(`the template requires only one child node, detected ${node.children.length}. 
+        if (node.children.length !== 1) {
+            error(`the template requires one root node, detected ${node.children.length}. 
             The DdBind parser will only parse the first one`, null);
+            return;
         }
         node.jsNode = {
             type: 'FunctionDeclaration',
@@ -3227,6 +3228,7 @@ function createVnode(type, props, children) {
         else {
             builder.setIf(true);
         }
+        delete propsObject['_if_'];
         // 设置属性值
         builder.setProps(propsObject);
         return builder.build();
@@ -3978,7 +3980,7 @@ class DdBind {
             container = document.querySelector(el);
         }
         else {
-            container = el || document.body;
+            container = el ? el : document.body;
         }
         this.$template = this.$options.template;
         this.$el = container;
@@ -4001,9 +4003,9 @@ class DdBind {
      * 将vm对象与option数据进行绑定
      */
     _bind() {
-        const setups = this.$options.setup.bind(this)(); // 为setup绑定当前执行环境
-        const methods = this.$options.methods;
-        this.$data = this.$options.data();
+        const setups = this.$options.setup ? this.$options.setup.bind(this)() : {}; // 为setup绑定当前执行环境
+        const methods = this.$options.methods ? this.$options.methods : {};
+        this.$data = this.$options.data ? this.$options.data() : {};
         Object.assign(setups, this.$data);
         // 将setup返回值处理为data或methods
         for (const setupsKey in setups) {
@@ -4015,7 +4017,7 @@ class DdBind {
             }
         }
         // 绑定计算属性
-        const computedList = this.$options.computed;
+        const computedList = this.$options.computed ? this.$options.computed : {};
         for (const key in computedList) {
             if (!key.startsWith('$') && !key.startsWith('_')) {
                 Object.defineProperty(this, key, {
@@ -4041,7 +4043,7 @@ class DdBind {
         }
         Object.assign(this, this.$data); // 将data绑定在当前vm对象上
         // 绑定侦听属性
-        const watchesFn = this.$options.watch;
+        const watchesFn = this.$options.watch ? this.$options.watch : {};
         for (const key in watchesFn) {
             if (!key.startsWith('$') && !key.startsWith('_')) {
                 watch(this.$data[key], watchesFn[key]); // 绑定在vm上的ref已经自动解value，要实现侦听需要使用$data里的原始响应式对象

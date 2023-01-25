@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>DdBind MVVM TEST</title>
+    <script src="../../dist/ddbind.browser.prod.js"></script>
+</head>
+<body>
+<div id="case-1">
+    <div>
+        <input d-model="foo"/>
+        <h1>{{ foo }}</h1>
+    </div>
+</div>
+<script>
+    DdBind.createApp({
+        data() {
+            return {
+                foo: 'hello',
+                show: true
+            }
+        }
+    }).mount('#case-1')
+</script>
+<div id="case-2">
+    <div>
+        <div>
+            <button d-if="show" @click="show=false, count++">is showing</button>
+            <button d-if="!show" @click="show=true, count++">not showing</button>
+        </div>
+        <div>
+            <h1>{{ count }}</h1>
+        </div>
+    </div>
+</div>
+<script>
+    DdBind.createApp({
+        data() {
+            return {
+                count: 0,
+                show: true
+            }
+        }
+    }).mount('#case-2')
+</script>
+</body>
+</html>

@@ -41,6 +41,7 @@ function getConfig(isTargetingBrowser, buildType = 'dev') {
     }
     const vars = {
         __DEV__: buildType === 'dev',
+        __TEST__: false,
         preventAssignment: true
     }
     config.plugins.push(replace(vars))

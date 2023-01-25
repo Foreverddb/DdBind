@@ -4,21 +4,21 @@ import {Renderer, VNode} from "./renderer";
 export interface DdBindOptions {
 
     template?: string
-    setup: () => object
+    setup?: () => object
 
-    onMounted: () => any
+    onMounted?: () => any
 
-    data: () => object
+    data?: () => object
 
-    methods: {
+    methods?: {
         [propName: string]: Function
     }
 
-    computed: {
+    computed?: {
         [propName: string]: Function
     }
 
-    watch: {
+    watch?: {
         [propName: string]: Function
     }
 }

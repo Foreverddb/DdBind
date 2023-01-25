@@ -39,7 +39,6 @@ describe('reactivity/watch', () => {
         const data = ref(0)
 
         watch(data, (newValue) => {
-            console.log(newValue)
             count = newValue
         })
 

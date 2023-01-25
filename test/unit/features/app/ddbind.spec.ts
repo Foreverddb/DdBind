@@ -1,8 +1,12 @@
 import {DdBindVm} from "types/ddbind";
 import {createApp, ref} from "DdBind";
 import {vi} from "vitest";
+import {initDom} from "../../helper";
 
 describe('module/ddbind', () => {
+    afterEach(() => {
+        initDom()
+    })
     // 测试创建简单应用
     it('create simple app', () => {
         const app: DdBindVm = createApp({
@@ -18,9 +22,6 @@ describe('module/ddbind', () => {
         expect(document.body.innerHTML).toBe('<div>hello world</div>')
         expect(app.$el).toBe(document.body)
         expect(app.foo).toBe('bar')
-
-        document.body.innerHTML = ''
-        document.body['_vnode'] = null
     })
     // 测试创建一个属性完备的应用
     it('create complete app', () => {
@@ -62,9 +63,6 @@ describe('module/ddbind', () => {
         expect(spy).toHaveBeenCalledTimes(1)
         app.foo = 'foo'
         expect(spy).toHaveBeenCalledTimes(2)
-
-        document.body.innerHTML = ''
-        document.body['_vnode'] = null
     })
     // 测试挂载到某个特定元素
     it('mount on specific element', () => {
@@ -83,8 +81,6 @@ describe('module/ddbind', () => {
         expect(app.$el).toBe(document.querySelector('#app'))
         expect(app.foo).toBe('bar')
 
-        document.body.innerHTML = ''
-        document.body['_vnode'] = null
     })
     // 测试插值
     it('mount with interpolation', () => {
@@ -103,7 +99,5 @@ describe('module/ddbind', () => {
         expect(document.querySelector('#app').innerHTML).toBe('<div>bar</div>')
         expect(app.$el).toBe(document.querySelector('#app'))
 
-        document.body.innerHTML = ''
-        document.body['_vnode'] = null
     })
 })

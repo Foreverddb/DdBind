@@ -4,6 +4,7 @@
 
 <p align="center">
   <a href="https://codecov.io/gh/Foreverddb/DdBind"><img src="https://codecov.io/gh/Foreverddb/DdBind/branch/master/graph/badge.svg?token=GXMXNM3HQL" alt="coverage"/></a>
+  <a href="https://npmcharts.com/compare/ddbind?minimal=true"><img src="https://img.shields.io/npm/dm/ddbind.svg?sanitize=true" alt="NPM Downloads"></a>
   <a href="https://www.npmjs.com/package/ddbind"><img src="https://img.shields.io/npm/v/ddbind.svg?sanitize=true" alt="Version"></a>
   <a href="https://www.npmjs.com/package/ddbind"><img src="https://img.shields.io/npm/l/ddbind.svg?sanitize=true" alt="License"></a>
 </p>
@@ -55,7 +56,7 @@ const app = DdBind.createApp({
 app.mount('#app')
 ```
 
-### node
+### as ES Module
 
 ```typescript
 import {createApp} from 'ddbind'
