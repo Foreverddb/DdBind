@@ -66,4 +66,32 @@ describe('parser', () => {
             content: '<'
         })
     })
+    // 测试HTML数组引用字符串解析
+    it('parse HTML digital type referred string', () => {
+        const ast1 = parse(`<h1>&#60</h1>`)
+
+        expect(ast1.children[0].children).toContainEqual({
+            type: 'Text',
+            content: '<'
+        })
+
+        const ast2 = parse(`<h1>&#x80</h1>`)
+        expect(ast2.children[0].children).toContainEqual({
+            type: 'Text',
+            content: '€'
+        })
+
+        const ast3 = parse(`<h1>&#0</h1>`)
+        expect(ast3.children[0].children).toContainEqual({
+            type: 'Text',
+            content: String.fromCodePoint(0xfffd)
+        })
+    })
+    // 测试注释的解析
+    it('parse comment node', () => {
+        const ast = parse('<!--hello world-->')
+        expect(ast.type).toBe('Root')
+        expect(ast.children[0].type).toBe('Comment')
+        expect(ast.children[0].content).toBe('hello world')
+    })
 })

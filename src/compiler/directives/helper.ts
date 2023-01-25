@@ -51,7 +51,7 @@ export const directiveHandler = {
             createKeyValueObjectNode(
                 'innerHTML',
                 directive.exp.content,
-                'StringLiteral'
+                'Expression'
             )
         )
     }

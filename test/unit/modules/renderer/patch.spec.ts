@@ -1,8 +1,12 @@
 import {patch} from "renderer/patch";
 import {VNode} from "types/renderer";
 import {CommentVnodeSymbol, TextVnodeSymbol} from "renderer/vnode";
+import {initDom} from "../../helper";
 
 describe('patch', () => {
+    afterEach(() => {
+        initDom()
+    })
     // 测试简单的渲染
     it('patch simple vnode', () => {
         const vnode = {
@@ -27,7 +31,6 @@ describe('patch', () => {
             if: true
         } as VNode
         const container = document.body
-        container.innerHTML = '' // 清空dom避免互相影响测试
 
         patch(null, vnode, container)
 
@@ -41,7 +44,6 @@ describe('patch', () => {
             if: true
         } as VNode
         const container = document.body
-        container.innerHTML = '' // 清空dom避免互相影响测试
 
         patch(null, vnode, container)
         expect(container.innerHTML).toBe('<h1>hello world</h1>')
@@ -65,7 +67,32 @@ describe('patch', () => {
             if: true
         } as VNode
         const container = document.body
-        container.innerHTML = '' // 清空dom避免互相影响测试
+
+        patch(null, vnode, container)
+        expect(container.innerHTML).toBe('<h1>hello world</h1>')
+
+        const vnode2 = {
+            type: 'div',
+            children: [
+                {
+                    type: 'h1',
+                    children: 'hello world',
+                    if: true
+                }
+            ],
+            if: true
+        } as VNode
+        patch(vnode, vnode2, container)
+        expect(container.innerHTML).toBe('<div><h1>hello world</h1></div>')
+    })
+    // 测试注释节点的更新
+    it('update comment node', () => {
+        const vnode = {
+            type: 'h1',
+            children: 'hello world',
+            if: true
+        } as VNode
+        const container = document.body
 
         patch(null, vnode, container)
         expect(container.innerHTML).toBe('<h1>hello world</h1>')
@@ -87,6 +114,72 @@ describe('patch', () => {
     // 测试复杂嵌套渲染
     it('update nested vnode', () => {
         const vnode = {
+            type: CommentVnodeSymbol,
+            children: 'comment',
+            if: true
+        } as VNode
+        const container = document.body
+
+        patch(null, vnode, container)
+        expect(container.innerHTML).toBe('<!--comment-->')
+
+        const vnode2 = {
+            type: CommentVnodeSymbol,
+            children: 'new comment',
+            if: true
+        } as VNode
+        patch(vnode, vnode2, container)
+        expect(container.innerHTML).toBe('<!--new comment-->')
+    })
+    // 测试文本节点的更新
+    it('update text vnode', () => {
+        const vnode = {
+            type: TextVnodeSymbol,
+            children: 'text',
+            if: true
+        } as VNode
+        const container = document.body
+
+        patch(null, vnode, container)
+        expect(container.innerHTML).toBe('text')
+
+        const vnode2 = {
+            type: TextVnodeSymbol,
+            children: 'new text',
+            if: true
+        } as VNode
+        patch(vnode, vnode2, container)
+        expect(container.innerHTML).toBe('new text')
+    })
+    // 测试复杂嵌套渲染
+    it('update nested vnode with different child type', () => {
+        const vnode = {
+            type: 'div',
+            children: [
+                {
+                    type: 'h1',
+                    children: 'hello world',
+                    if: true
+                }
+            ],
+            if: true
+        } as VNode
+        const container = document.body
+
+        patch(null, vnode, container)
+        expect(container.innerHTML).toBe('<div><h1>hello world</h1></div>')
+
+        const vnode2 = {
+            type: 'div',
+            children: 'text',
+            if: true
+        } as VNode
+        patch(vnode, vnode2, container)
+        expect(container.innerHTML).toBe('<div>text</div>')
+    })
+    // 测试复杂嵌套渲染
+    it('update nested vnode', () => {
+        const vnode = {
             type: 'div',
             children: [
                 {
@@ -103,7 +196,6 @@ describe('patch', () => {
             if: true
         } as VNode
         const container = document.body
-        container.innerHTML = '' // 清空dom避免互相影响测试
 
         patch(null, vnode, container)
         expect(container.innerHTML).toBe('<div><h1>hello world</h1>text</div>')
@@ -127,6 +219,53 @@ describe('patch', () => {
         patch(vnode, vnode2, container)
         expect(container.innerHTML).toBe('<div><h1>bye world</h1><!--comment--></div>')
     })
+    // 测试新旧子节点数不同
+    it('update nested vnode with different number of children', () => {
+        const vnode = {
+            type: 'div',
+            children: [
+                {
+                    type: 'h1',
+                    children: 'hello world',
+                    if: true
+                },
+                {
+                    type: TextVnodeSymbol,
+                    children: 'text',
+                    if: true
+                }
+            ],
+            if: true
+        } as VNode
+        const container = document.body
+
+        patch(null, vnode, container)
+        expect(container.innerHTML).toBe('<div><h1>hello world</h1>text</div>')
+
+        const vnode2 = {
+            type: 'div',
+            children: [
+                {
+                    type: 'h1',
+                    children: 'bye world',
+                    if: true
+                },
+                {
+                    type: CommentVnodeSymbol,
+                    children: 'comment',
+                    if: true
+                },
+                {
+                    type: 'div',
+                    children: 'div',
+                    if: true
+                }
+            ],
+            if: true
+        } as VNode
+        patch(vnode, vnode2, container)
+        expect(container.innerHTML).toBe('<div><h1>bye world</h1><!--comment--><div>div</div></div>')
+    })
     // 测试if指令导致的不渲染
     it('should not render if the vnode\'s property of if is false', () => {
         const vnode = {
@@ -135,7 +274,6 @@ describe('patch', () => {
             if: false
         } as VNode
         const container = document.body
-        container.innerHTML = '' // 清空dom避免互相影响测试
 
         patch(null, vnode, container)
         expect(container.innerHTML).toBe('')
@@ -156,9 +294,34 @@ describe('patch', () => {
             if: true
         } as VNode
         const container = document.body
-        container.innerHTML = '' // 清空dom避免互相影响测试
 
         patch(null, vnode, container)
         expect(container.innerHTML).toBe('<h1 style="color: red; font-size: 20px;" class="test test2">hello world</h1>')
+    })
+    // 测试新子节点为null
+    it('should not render if the vnode\'s property of if is false', () => {
+        const vnode = {
+            type: 'div',
+            children: [
+                {
+                    type: 'h1',
+                    children: 'hello world',
+                    if: true
+                }
+            ],
+            if: true
+        } as VNode
+        const container = document.body
+
+        patch(null, vnode, container)
+        expect(container.innerHTML).toBe('<div><h1>hello world</h1></div>')
+
+        const vnode2 = {
+            type: 'div',
+            children: null,
+            if: true
+        } as VNode
+        patch(vnode, vnode2, container)
+        expect(container.innerHTML).toBe('<div></div>')
     })
 })

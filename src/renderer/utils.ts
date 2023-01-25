@@ -23,6 +23,7 @@ export function createVnode(type: string, props: any, children: string | Array<|
         } else {
             builder.setIf(true)
         }
+        delete propsObject['_if_']
 
         // 设置属性值
         builder.setProps(propsObject)

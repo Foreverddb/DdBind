@@ -24,7 +24,8 @@
     "dev:browser": "rollup -w -c scripts/config.cjs --environment BROWSER:true",
     "dev:node": "rollup -w -c scripts/config.cjs --environment BROWSER:false",
     "build": "node scripts/build.cjs",
-    "test:unit": "vitest test/unit --coverage"
+    "test:unit": "vitest test/unit --coverage",
+    "coverage": "vitest run --coverage"
   },
   "homepage": "https://github.com/Foreverddb/DdBind#readme",
   "repository": {

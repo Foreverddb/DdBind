@@ -9,7 +9,7 @@ import {
     ReturnStatementNode,
     TemplateAST
 } from "types/compiler";
-import {warn} from "utils/debug";
+import {error} from "utils/debug";
 import {transformDirectiveExpression} from "compiler/directives";
 import {JS_VARIABLE_NAME_VALIDATOR} from "compiler/transformer/regexp";
 
@@ -280,9 +280,10 @@ export function transformRoot(node: TemplateAST): () => void {
 
         const vnodeJSAST: JavascriptNode = node.children[0].jsNode // 根节点只能有一个子元素
 
-        if (__DEV__ && node.children.length > 1) {
-            warn(`the template requires only one child node, detected ${node.children.length}. 
+        if ((__DEV__ || __TEST__) && node.children.length !== 1) {
+            error(`the template requires one root node, detected ${node.children.length}. 
             The DdBind parser will only parse the first one`, null)
+            return;
         }
 
         node.jsNode = {

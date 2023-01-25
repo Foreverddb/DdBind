@@ -42,12 +42,12 @@ export class DdBind implements DdBindVm{
      * 将app挂载到指定dom上
      * @param el dom或selector
      */
-    mount(el?: string | HTMLElement) {
+    public mount(el?: string | HTMLElement) {
         let container: Container
         if (typeof el === 'string') {
             container = document.querySelector(el)
         } else {
-            container = el || document.body
+            container = el ? el : document.body
         }
 
         this.$template = this.$options.template
@@ -76,10 +76,10 @@ export class DdBind implements DdBindVm{
      * 将vm对象与option数据进行绑定
      */
     private _bind() {
-        const setups: object = this.$options.setup.bind(this)() // 为setup绑定当前执行环境
+        const setups: object = this.$options.setup ? this.$options.setup.bind(this)() : {} // 为setup绑定当前执行环境
 
-        const methods: object = this.$options.methods
-        this.$data = this.$options.data()
+        const methods: object = this.$options.methods ? this.$options.methods : {}
+        this.$data = this.$options.data ? this.$options.data() : {}
 
         Object.assign(setups, this.$data)
 
@@ -93,7 +93,7 @@ export class DdBind implements DdBindVm{
         }
 
         // 绑定计算属性
-        const computedList: object = this.$options.computed
+        const computedList: object = this.$options.computed ? this.$options.computed : {}
         for (const key in computedList) {
             if (!key.startsWith('$') && !key.startsWith('_')) {
                 Object.defineProperty(this, key, {
@@ -122,7 +122,7 @@ export class DdBind implements DdBindVm{
         Object.assign(this, this.$data) // 将data绑定在当前vm对象上
 
         // 绑定侦听属性
-        const watchesFn: object = this.$options.watch
+        const watchesFn: object = this.$options.watch ? this.$options.watch : {}
         for (const key in watchesFn) {
             if (!key.startsWith('$') && !key.startsWith('_')) {
                 watch(this.$data[key], watchesFn[key]) // 绑定在vm上的ref已经自动解value，要实现侦听需要使用$data里的原始响应式对象

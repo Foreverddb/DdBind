@@ -9,7 +9,8 @@ export default defineConfig({
             reactivity: resolve("src/reactivity"),
             renderer: resolve("src/renderer"),
             core: resolve("src/core"),
-            utils: resolve("src/utils")
+            utils: resolve("src/utils"),
+            DdBind: resolve("src/module")
         }
     },
     define: {
@@ -19,6 +20,7 @@ export default defineConfig({
     test: {
         globals: true,
         environment: 'jsdom',
+        isolate: true,
         exclude: [...configDefaults.exclude],
         coverage: {
             provider: "c8",

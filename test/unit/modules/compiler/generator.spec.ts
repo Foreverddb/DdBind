@@ -58,6 +58,6 @@ describe('generator', () => {
     // 测试html指令代码生成
     it ('generate d-html directive code', () => {
         const code = generateCode(`<div d-html="'<h1>hello world</h1>'"></div>`)
-        expect(code).toBe(`with(this) {return _h('div', {'directives': {'d-html': ('<h1>hello world</h1>')}, 'on': {}, 'attrs': {'innerHTML': '\\'<h1>hello world</h1>\\''}}, [])}`)
+        expect(code).toBe(`with(this) {return _h('div', {'directives': {'d-html': ('<h1>hello world</h1>')}, 'on': {}, 'attrs': {'innerHTML': ('<h1>hello world</h1>')}}, [])}`)
     })
 })
