@@ -1,7 +1,7 @@
 import {DdBindOptions, DdBindVm} from "types/ddbind";
 import {Compiler} from "compiler/index";
 import {Container, Renderer, VNode} from "types/renderer";
-import {effect} from "core/effect";
+import {watchEffect} from "core/effect";
 import {createRenderer} from "renderer/index";
 import {ref} from "reactivity/ref";
 import {computed} from "reactivity/computed";
@@ -63,7 +63,7 @@ export class DdBind implements DdBindVm{
         this._bind()
 
         // 注册响应式数据，当数据改变时重新渲染
-        effect(() => {
+        watchEffect(() => {
             this.$vnode = this.$render() // 挂载并渲染vnode
             this.$renderer.render(this.$vnode, this.$el)
         })

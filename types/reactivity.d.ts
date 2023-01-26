@@ -1,4 +1,4 @@
-import {EffectFunction} from "./effect";
+import {EffectFunction} from "./watchEffect";
 
 declare module 'types/reactivity'
 

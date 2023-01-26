@@ -1,6 +1,6 @@
 import {proxyRefs, ref, toRefs} from "reactivity/ref";
 import {reactive} from "reactivity/reactive";
-import {effect} from "core/effect";
+import {watchEffect} from "core/effect";
 import {vi} from "vitest";
 
 describe('reactivity/ref', () => {
@@ -25,7 +25,7 @@ describe('reactivity/ref', () => {
         const observed = ref(originObj)
         const spy = vi.fn()
 
-        effect(() => {
+        watchEffect(() => {
             observed.value.toString()
             spy()
         })
@@ -46,7 +46,7 @@ describe('reactivity/ref', () => {
 
         // 测试响应能力
         const spy = vi.fn()
-        effect(() => {
+        watchEffect(() => {
             observed.foo.value
             spy()
         })
@@ -66,7 +66,7 @@ describe('reactivity/ref', () => {
 
         // 测试响应能力
         const spy = vi.fn()
-        effect(() => {
+        watchEffect(() => {
             proxy.foo
             spy()
         })
@@ -85,7 +85,7 @@ describe('reactivity/ref', () => {
             }
         })
 
-        effect(() => {
+        watchEffect(() => {
             count = obj.b.c.value
         })
 

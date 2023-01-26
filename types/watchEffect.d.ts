@@ -22,8 +22,4 @@ export interface EffectFunction<T = any> extends Function {
  */
 export interface DepsMap extends Map<string | symbol, Set<EffectFunction>> {}
 
-export function effect(func: () => any, options: EffectOption): EffectFunction
-
-export function track(target: any, key: string | symbol)
-
-export function trigger(target: any, key: string | symbol, type?: string)
+export function watchEffect(func: () => any, options: EffectOption): EffectFunction

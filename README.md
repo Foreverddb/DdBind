@@ -47,22 +47,43 @@ npm install --save ddbind
 
 ## 使用
 
-### browser
+### HTML:
+
+```html
+
+<div id="app">
+    <div>
+        <h1>{{ foo }}</h1>
+    </div>
+</div>
+```
+
+### javascript:
+
+#### browser
 
 ```javascript
 const app = DdBind.createApp({
-    ...options
+    data() {
+        return {
+            foo: 'bar'
+        }
+    }
 })
 app.mount('#app')
 ```
 
-### as ES Module
+#### as ES Module
 
 ```typescript
-import {createApp} from 'ddbind'
+import {createApp, ref} from 'ddbind'
 
 const app = createApp({
-    ...options
+    setup() {
+        return {
+            foo: ref('bar')
+        }
+    }
 })
 app.mount('#app')
 ```
@@ -85,7 +106,7 @@ app.mount('#app')
 
 ## 其他
 
-[项目开发简介](docs/usage.md)
+[项目开发文档](docs/dev.md)
 
 ## License
 

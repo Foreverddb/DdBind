@@ -1,4 +1,4 @@
-import {DepsMap, EffectFunction, EffectOption} from "types/effect";
+import {DepsMap, EffectFunction, EffectOption} from "types/watchEffect";
 
 let activeEffect: EffectFunction // 当前激活的副作用函数
 const effectBucket: WeakMap<any, DepsMap> = new WeakMap() // 副作用函数桶
@@ -21,10 +21,11 @@ function cleanup(effectFn: EffectFunction) {
  * @param func 副作用函数
  * @param options 副作用函数的执行选项
  */
-export function effect(func: () => any, options: EffectOption = {}): EffectFunction {
+export function watchEffect(func: () => any, options: EffectOption = {}): EffectFunction {
     const effectFn: EffectFunction = () => {
         cleanup(effectFn)
 
+        // 嵌套时将外层函数加入运行栈
         activeEffect = effectFn
         effectStack.push(effectFn)
         const res = func()
@@ -82,8 +83,10 @@ export function trigger(target: any, key: string | symbol, type?: string) {
 
     const effects = depsMap.get(key)
 
+    // 实际需执行的副作用函数
     const effectsToRuns: Set<EffectFunction> = new Set()
     effects && effects.forEach((fn) => {
+        // 避免与当前执行的函数相同引起无限递归
         if (fn !== activeEffect) {
             effectsToRuns.add(fn)
         }

@@ -3318,7 +3318,6 @@
             var templateAST = parse(source); // 编译HTML模版为模版AST
             var jsAST = transform(templateAST); // 将模版AST转换为jsAST
             var code = generate(jsAST); // 根据jsAST生成渲染函数代码
-            console.log(code);
             this.$vm.$render = createFunction(code, this.$vm);
         };
         return Compiler;
@@ -3351,10 +3350,11 @@
      * @param func 副作用函数
      * @param options 副作用函数的执行选项
      */
-    function effect(func, options) {
+    function watchEffect(func, options) {
         if (options === void 0) { options = {}; }
         var effectFn = function () {
             cleanup(effectFn);
+            // 嵌套时将外层函数加入运行栈
             activeEffect = effectFn;
             effectStack.push(effectFn);
             var res = func();
@@ -3406,8 +3406,10 @@
         // }
         // depsMap = effectBucket.get(target)
         var effects = depsMap.get(key);
+        // 实际需执行的副作用函数
         var effectsToRuns = new Set();
         effects && effects.forEach(function (fn) {
+            // 避免与当前执行的函数相同引起无限递归
             if (fn !== activeEffect) {
                 effectsToRuns.add(fn);
             }
@@ -3905,7 +3907,7 @@
     function computed(getter) {
         var buffer; // 缓存上一次计算值
         var dirty = true; // 脏值flag，脏值检测依赖的是响应式数据Proxy
-        var effectFn = effect(getter, {
+        var effectFn = watchEffect(getter, {
             isLazy: true,
             // 当依赖的响应式数据发生变化时刷新缓存
             scheduler: function () {
@@ -3990,7 +3992,7 @@
         var onExpired = function (fn) {
             onExpiredHandler = fn;
         };
-        var effectFn = effect(getter, {
+        var effectFn = watchEffect(getter, {
             isLazy: true,
             scheduler: function () {
                 var data = effectFn();
@@ -4037,7 +4039,7 @@
             container.innerHTML = '';
             this._bind();
             // 注册响应式数据，当数据改变时重新渲染
-            effect(function () {
+            watchEffect(function () {
                 _this.$vnode = _this.$render(); // 挂载并渲染vnode
                 _this.$renderer.render(_this.$vnode, _this.$el);
             });
@@ -4105,11 +4107,11 @@
     exports.DdBind = DdBind;
     exports.computed = computed;
     exports.createApp = createApp;
-    exports.effect = effect;
     exports.proxyRefs = proxyRefs;
     exports.reactive = reactive;
     exports.ref = ref;
     exports.toRefs = toRefs;
     exports.watch = watch;
+    exports.watchEffect = watchEffect;
 
 }));

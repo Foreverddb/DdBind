@@ -1,6 +1,6 @@
 import {computed} from "reactivity/computed";
 import {ref} from "reactivity/ref";
-import {effect} from "core/effect";
+import {watchEffect} from "core/effect";
 import {vi} from "vitest";
 
 describe('reactivity/computed', () => {
@@ -24,14 +24,14 @@ describe('reactivity/computed', () => {
         expect(cValue.value).toBe('bar'.repeat(2))
     })
     // 测试响应能力
-    it ('should trigger effect', () => {
+    it('should trigger watchEffect', () => {
         const data = ref(1)
         let count: number = 0
         const cValue = computed(() => {
             return data.value
         })
 
-        effect(() => {
+        watchEffect(() => {
             count = cValue.value
         })
 
@@ -49,7 +49,7 @@ describe('reactivity/computed', () => {
         })
         const cValue = computed(getter)
 
-        effect(() => {
+        watchEffect(() => {
             count = cValue.value
         })
 
@@ -70,7 +70,7 @@ describe('reactivity/computed', () => {
         })
         const cValue = computed(getter)
 
-        effect(() => {
+        watchEffect(() => {
             count = cValue.value
         })
 

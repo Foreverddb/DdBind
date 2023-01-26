@@ -1,12 +1,12 @@
-import {effect} from "core/effect";
+import {watchEffect} from "core/effect";
 import {vi} from "vitest";
 import {ref} from "reactivity/ref";
 
-describe('effect', () => {
+describe('watchEffect', () => {
     // 测试最简单的effect
-    test('simple effect', () => {
+    test('simple watchEffect', () => {
         const spy = vi.fn()
-        const effectFN = effect(() => {
+        const effectFN = watchEffect(() => {
             spy()
         })
 
@@ -17,7 +17,7 @@ describe('effect', () => {
     // 测试懒执行
     it('lazily call', () => {
         const spy = vi.fn()
-        const effectFN = effect(() => {
+        const effectFN = watchEffect(() => {
             spy()
         }, {
             isLazy: true
@@ -28,17 +28,17 @@ describe('effect', () => {
         expect(spy).toHaveBeenCalledTimes(1)
     })
     // 测试嵌套
-    test('nested effect', () => {
+    test('nested watchEffect', () => {
         const observed1 = ref('foo')
         const observed2 = ref('bar')
 
         const spy1 = vi.fn()
         const spy2 = vi.fn()
 
-        effect(() => {
+        watchEffect(() => {
             observed1.value
             spy1()
-            effect(() => {
+            watchEffect(() => {
                 observed2.value
                 spy2()
             })

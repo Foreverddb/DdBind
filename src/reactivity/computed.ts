@@ -1,6 +1,6 @@
-import {effect, track, trigger} from "core/index";
+import {track, trigger, watchEffect} from "core/index";
 import {Computed} from "types/reactivity";
-import {EffectFunction} from "types/effect";
+import {EffectFunction} from "types/watchEffect";
 
 /**
  * 创建一个计算属性
@@ -10,7 +10,7 @@ export function computed<T>(getter: EffectFunction<T>): Computed<T> {
     let buffer: T // 缓存上一次计算值
     let dirty: boolean = true // 脏值flag，脏值检测依赖的是响应式数据Proxy
 
-    const effectFn = effect(getter, {
+    const effectFn = watchEffect(getter, {
         isLazy: true,
         // 当依赖的响应式数据发生变化时刷新缓存
         scheduler: () => {

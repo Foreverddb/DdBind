@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>DdBind Demo</title>
-    <script src="../dist/ddbind.browser.dev.js"></script>
+    <script src="../dist/ddbind.browser.prod.js"></script>
     <style>
         .test {
             font-size: 30px;
@@ -19,9 +19,18 @@
         <label>I will be password type if foo not start with 'bar'</label>
         <input :class="['test', 'test2']" :placeholder="re.text" d-model="foo"
                :type="foo.startsWith('bar') ? 'text' : 'password'"/>
-        <div :style="[{color: 'red'}]" id="test">
-            foo: {{ foo === 'bar' ? re.text : foo }}
+        <div>
+            <div :style="styles[index]" id="test">
+                foo: {{ foo === 'bar' ? re.text : foo }}
+            </div>
+            <button @click="index = 'green'">
+                green
+            </button>
+            <button @click="index = 'red'">
+                red
+            </button>
         </div>
+
         <div>
             {{ com }}
         </div>
@@ -43,7 +52,11 @@
             return {
                 foo: 'bar',
                 count: 0,
-                ary: ['ff']
+                styles: {
+                    green: [{color: 'green'}],
+                    red: [{color: 'red'}],
+                },
+                index: 'green'
             }
         },
         setup() {

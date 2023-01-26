@@ -3303,7 +3303,6 @@ class Compiler {
         const templateAST = parse(source); // 编译HTML模版为模版AST
         const jsAST = transform(templateAST); // 将模版AST转换为jsAST
         const code = generate(jsAST); // 根据jsAST生成渲染函数代码
-        console.log(code);
         this.$vm.$render = createFunction(code, this.$vm);
     }
 }
@@ -3335,9 +3334,10 @@ function cleanup(effectFn) {
  * @param func 副作用函数
  * @param options 副作用函数的执行选项
  */
-function effect(func, options = {}) {
+function watchEffect(func, options = {}) {
     const effectFn = () => {
         cleanup(effectFn);
+        // 嵌套时将外层函数加入运行栈
         activeEffect = effectFn;
         effectStack.push(effectFn);
         const res = func();
@@ -3389,8 +3389,10 @@ function trigger(target, key, type) {
     // }
     // depsMap = effectBucket.get(target)
     const effects = depsMap.get(key);
+    // 实际需执行的副作用函数
     const effectsToRuns = new Set();
     effects && effects.forEach((fn) => {
+        // 避免与当前执行的函数相同引起无限递归
         if (fn !== activeEffect) {
             effectsToRuns.add(fn);
         }
@@ -3888,7 +3890,7 @@ function ref(value) {
 function computed(getter) {
     let buffer; // 缓存上一次计算值
     let dirty = true; // 脏值flag，脏值检测依赖的是响应式数据Proxy
-    const effectFn = effect(getter, {
+    const effectFn = watchEffect(getter, {
         isLazy: true,
         // 当依赖的响应式数据发生变化时刷新缓存
         scheduler: () => {
@@ -3946,7 +3948,7 @@ function watch(target, callback) {
     const onExpired = (fn) => {
         onExpiredHandler = fn;
     };
-    const effectFn = effect(getter, {
+    const effectFn = watchEffect(getter, {
         isLazy: true,
         scheduler: () => {
             let data = effectFn();
@@ -3992,7 +3994,7 @@ class DdBind {
         container.innerHTML = '';
         this._bind();
         // 注册响应式数据，当数据改变时重新渲染
-        effect(() => {
+        watchEffect(() => {
             this.$vnode = this.$render(); // 挂载并渲染vnode
             this.$renderer.render(this.$vnode, this.$el);
         });
@@ -4056,4 +4058,4 @@ function createApp(options) {
     return proxyRefs(new DdBind(options));
 }
 
-export { DdBind, computed, createApp, effect, proxyRefs, reactive, ref, toRefs, watch };
+export { DdBind, computed, createApp, proxyRefs, reactive, ref, toRefs, watch, watchEffect };

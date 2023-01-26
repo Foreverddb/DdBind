@@ -1,5 +1,5 @@
 export {
-    effect,
+    watchEffect,
     trigger,
     track,
-} from './effect'
+} from './watchEffect'

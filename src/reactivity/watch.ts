@@ -1,4 +1,4 @@
-import {effect} from "core/effect";
+import {watchEffect} from "core/effect";
 import {warn} from "utils/debug";
 import {RefObj, WatchCallback} from "types/reactivity";
 
@@ -40,7 +40,7 @@ export function watch<T>(target: T | (() => T) | RefObj<T>, callback: WatchCallb
         onExpiredHandler = fn
     }
 
-    const effectFn = effect(getter, {
+    const effectFn = watchEffect(getter, {
         isLazy: true,
         scheduler: () => {
             let data = effectFn()

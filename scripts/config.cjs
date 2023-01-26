@@ -31,7 +31,7 @@ function getConfig(isTargetingBrowser, buildType = 'dev') {
                 ' */',
             exports: 'auto',
             globals: {
-                'effect': 'types/effect',
+                'effect': 'types/watchEffect',
                 'reactivity': 'types/reactivity',
                 'renderer': 'types/renderer',
                 'compiler': 'types/compiler',

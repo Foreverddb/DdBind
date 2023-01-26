@@ -1,5 +1,5 @@
 // 解析器上下文
-import {DdBindVm} from "./ddbind";
+import {DdBindVm} from "types/ddbind";
 
 export interface ParserContext {
     source: string
@@ -157,4 +157,3 @@ export interface iCompiler {
     $el: HTMLElement
     $vm: DdBindVm
 }
-

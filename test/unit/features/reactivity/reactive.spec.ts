@@ -1,5 +1,5 @@
 import {reactive} from "reactivity/reactive";
-import {effect} from "core/effect";
+import {watchEffect} from "core/effect";
 import {vi} from "vitest";
 
 describe('reactivity/reactive', () => {
@@ -55,7 +55,7 @@ describe('reactivity/reactive', () => {
 
         const spy = vi.fn()
 
-        effect(() => {
+        watchEffect(() => {
             observed.foo
             spy()
         })
@@ -81,7 +81,7 @@ describe('reactivity/reactive', () => {
 
         const spy = vi.fn()
 
-        effect(() => {
+        watchEffect(() => {
             observed.toString()
             spy()
         })
@@ -101,7 +101,7 @@ describe('reactivity/reactive', () => {
 
         const spy = vi.fn()
 
-        effect(() => {
+        watchEffect(() => {
             observed.foo
             spy()
         })
