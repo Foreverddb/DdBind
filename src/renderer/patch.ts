@@ -15,7 +15,7 @@ const vnodeStack: VNode[] = []
 export function patch(oldVNode: VNode, newVNode: VNode, container: Container): void {
     // 获取锚点以确定挂载dom的位置
     const anchor = vnodeStack.length > 0 ? vnodeStack.pop() : null
-    // debugger
+
     if (!newVNode) {
         if (oldVNode) {
             unmountElement(oldVNode)
@@ -137,14 +137,14 @@ export function updateElementChild(oldVNode: VNode, newVNode: VNode, container: 
 
                 const oldLen: number = oldChildren.length
                 const newLen: number = newChildren.length
-
                 const commonLen: number = Math.min(oldLen, newLen)
 
                 for (let i = 0; i < commonLen; i++) {
-                    // debugger
+                    // 遍历找到下一个锚点dom
                     for (let j = i + 1; j < commonLen; j++) {
                         diff(oldChildren[j], newChildren[j])
                         if (newChildren[j].if && newChildren[j].el) {
+                            // 若存在锚点dom则入栈
                             vnodeStack.push(newChildren[j])
                             break
                         }
@@ -157,7 +157,6 @@ export function updateElementChild(oldVNode: VNode, newVNode: VNode, container: 
                 // 否则说明需要卸载旧节点
                 if (newLen > oldLen) {
                     for (let i = commonLen; i < newLen; i++) {
-                        diff(oldChildren[i], newChildren[i])
                         patch(null, newChildren[i], container)
                     }
                 } else if (oldLen > newLen) {
@@ -165,14 +164,6 @@ export function updateElementChild(oldVNode: VNode, newVNode: VNode, container: 
                         unmountElement(oldChildren[i])
                     }
                 }
-                // oldChildren.forEach(child => {
-                //     if (child.el) {
-                //         unmountElement(child)
-                //     }
-                // })
-                // newChildren.forEach(child => {
-                //     patch(null, child, container)
-                // })
             } else {
                 container.textContent = ''
                 newVNode.children.forEach(child => {

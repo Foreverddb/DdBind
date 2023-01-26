@@ -42,6 +42,17 @@ describe('parser', () => {
             value: 'test'
         })
     })
+    // 测试无引号标签属性解析
+    it('parse HTML attrs without quote', () => {
+        const ast = parse('<h1 class=test>hello world</h1>')
+        expect(ast.children[0].type).toBe('Element')
+        expect(ast.children[0].tag).toBe('h1')
+        expect(ast.children[0].props).toContainEqual({
+            type: 'Attribute',
+            name: 'class',
+            value: 'test'
+        })
+    })
     // 测试指令解析
     it('parse directive attr', () => {
         const ast = parse(`<h1 :class="['test']">hello world</h1>`)

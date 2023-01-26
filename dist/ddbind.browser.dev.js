@@ -3548,7 +3548,6 @@
     function patch(oldVNode, newVNode, container) {
         // 获取锚点以确定挂载dom的位置
         var anchor = vnodeStack.length > 0 ? vnodeStack.pop() : null;
-        // debugger
         if (!newVNode) {
             if (oldVNode) {
                 unmountElement(oldVNode);
@@ -3673,10 +3672,11 @@
                     var newLen = newChildren.length;
                     var commonLen = Math.min(oldLen, newLen);
                     for (var i = 0; i < commonLen; i++) {
-                        // debugger
+                        // 遍历找到下一个锚点dom
                         for (var j = i + 1; j < commonLen; j++) {
                             diff(oldChildren[j], newChildren[j]);
                             if (newChildren[j].if && newChildren[j].el) {
+                                // 若存在锚点dom则入栈
                                 vnodeStack.push(newChildren[j]);
                                 break;
                             }
@@ -3688,7 +3688,6 @@
                     // 否则说明需要卸载旧节点
                     if (newLen > oldLen) {
                         for (var i = commonLen; i < newLen; i++) {
-                            diff(oldChildren[i], newChildren[i]);
                             patch(null, newChildren[i], container);
                         }
                     }
@@ -3697,14 +3696,6 @@
                             unmountElement(oldChildren[i]);
                         }
                     }
-                    // oldChildren.forEach(child => {
-                    //     if (child.el) {
-                    //         unmountElement(child)
-                    //     }
-                    // })
-                    // newChildren.forEach(child => {
-                    //     patch(null, child, container)
-                    // })
                 }
                 else {
                     container.textContent = '';

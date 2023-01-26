@@ -220,7 +220,7 @@ describe('patch', () => {
         expect(container.innerHTML).toBe('<div><h1>bye world</h1><!--comment--></div>')
     })
     // 测试新旧子节点数不同
-    it('update nested vnode with different number of children', () => {
+    it('update nested vnode with different number of children(old < new)', () => {
         const vnode = {
             type: 'div',
             children: [
@@ -266,6 +266,42 @@ describe('patch', () => {
         patch(vnode, vnode2, container)
         expect(container.innerHTML).toBe('<div><h1>bye world</h1><!--comment--><div>div</div></div>')
     })
+    // 测试新旧子节点数不同
+    it('update nested vnode with different number of children(old > new)', () => {
+        const vnode = {
+            type: 'div',
+            children: [
+                {
+                    type: 'h1',
+                    children: 'hello world',
+                    if: true
+                }, {
+                    type: TextVnodeSymbol,
+                    children: 'text',
+                    if: true
+                }
+            ],
+            if: true
+        } as VNode
+        const container = document.body
+
+        patch(null, vnode, container)
+        expect(container.innerHTML).toBe('<div><h1>hello world</h1>text</div>')
+
+        const vnode2 = {
+            type: 'div',
+            children: [
+                {
+                    type: 'h1',
+                    children: 'bye world',
+                    if: true
+                }
+            ],
+            if: true
+        } as VNode
+        patch(vnode, vnode2, container)
+        expect(container.innerHTML).toBe('<div><h1>bye world</h1></div>')
+    })
     // 测试if指令导致的不渲染
     it('should not render if the vnode\'s property of if is false', () => {
         const vnode = {
@@ -299,7 +335,7 @@ describe('patch', () => {
         expect(container.innerHTML).toBe('<h1 style="color: red; font-size: 20px;" class="test test2">hello world</h1>')
     })
     // 测试新子节点为null
-    it('should not render if the vnode\'s property of if is false', () => {
+    it('new vnode\'s children is null and old vnode\'s children is array', () => {
         const vnode = {
             type: 'div',
             children: [
@@ -323,5 +359,51 @@ describe('patch', () => {
         } as VNode
         patch(vnode, vnode2, container)
         expect(container.innerHTML).toBe('<div></div>')
+    })
+    // 测试新子节点为null
+    it('new vnode\'s children is null and old vnode\'s children is string', () => {
+        const vnode = {
+            type: 'div',
+            children: 'hello world',
+            if: true
+        } as VNode
+        const container = document.body
+
+        patch(null, vnode, container)
+        expect(container.innerHTML).toBe('<div>hello world</div>')
+
+        const vnode2 = {
+            type: 'div',
+            children: null,
+            if: true
+        } as VNode
+        patch(vnode, vnode2, container)
+        expect(container.innerHTML).toBe('<div></div>')
+    })
+    // 测试新旧子节点类型不同
+    it('update nested vnode with different type of children', () => {
+        const vnode = {
+            type: 'div',
+            children: 'hello world',
+            if: true
+        } as VNode
+        const container = document.body
+
+        patch(null, vnode, container)
+        expect(container.innerHTML).toBe('<div>hello world</div>')
+
+        const vnode2 = {
+            type: 'div',
+            children: [
+                {
+                    type: 'h1',
+                    children: 'hello world',
+                    if: true
+                }
+            ],
+            if: true
+        } as VNode
+        patch(vnode, vnode2, container)
+        expect(container.innerHTML).toBe('<div><h1>hello world</h1></div>')
     })
 })

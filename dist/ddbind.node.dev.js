@@ -3520,6 +3520,8 @@ function patchProps(el, key, oldValue, newValue) {
     }
 }
 
+// 用于暂存当前vnode的后继vnode
+const vnodeStack = [];
 /**
  * 完成vnode的挂载更新
  * @param oldVNode 原vnode
@@ -3527,6 +3529,8 @@ function patchProps(el, key, oldValue, newValue) {
  * @param container 渲染容器
  */
 function patch(oldVNode, newVNode, container) {
+    // 获取锚点以确定挂载dom的位置
+    const anchor = vnodeStack.length > 0 ? vnodeStack.pop() : null;
     if (!newVNode) {
         if (oldVNode) {
             unmountElement(oldVNode);
@@ -3541,7 +3545,7 @@ function patch(oldVNode, newVNode, container) {
     const vnodeType = typeof newVNode.type;
     if (vnodeType === 'string') { // vnode为普通标签
         if (!oldVNode || !oldVNode.el) {
-            mountElement(newVNode, container); // 挂载vnode
+            mountElement(newVNode, container, anchor); // 挂载vnode
         }
         else {
             updateElement(oldVNode, newVNode); // 更新vnode
@@ -3555,7 +3559,7 @@ function patch(oldVNode, newVNode, container) {
             }
             if (!oldVNode) {
                 const el = newVNode.el = document.createTextNode(newVNode.children);
-                container.insertBefore(el, null);
+                insert(el, container);
             }
             else { // 若原节点存在则更新
                 const el = newVNode.el = oldVNode.el;
@@ -3570,7 +3574,7 @@ function patch(oldVNode, newVNode, container) {
             }
             if (!oldVNode) {
                 const el = newVNode.el = document.createComment(newVNode.children);
-                container.insertBefore(el, null);
+                insert(el, container);
             }
             else { // 若原节点存在则更新
                 const el = newVNode.el = oldVNode.el;
@@ -3585,8 +3589,9 @@ function patch(oldVNode, newVNode, container) {
  * 将vnode挂载到真实dom
  * @param vnode 需要挂载的vnode
  * @param container 挂载容器
+ * @param anchor 锚点，要挂载位置的直接后继vnode
  */
-function mountElement(vnode, container) {
+function mountElement(vnode, container, anchor) {
     if (vnode.if) {
         const el = vnode.el = document.createElement(vnode.type);
         // 将每个child挂载到真实dom
@@ -3607,7 +3612,7 @@ function mountElement(vnode, container) {
                 patchProps(el, key, null, vnode.props[key]);
             }
         }
-        container.insertBefore(el, null);
+        insert(el, container, anchor ? anchor.el : null);
     }
     else if (vnode.el) {
         unmountElement(vnode);
@@ -3628,7 +3633,7 @@ function unmountElement(vnode) {
  * 更新某节点的子节点
  * @param oldVNode 旧vnode
  * @param newVNode 新vnode
- * @param container
+ * @param container 容器dom
  */
 function updateElementChild(oldVNode, newVNode, container) {
     if (newVNode.if) {
@@ -3650,6 +3655,16 @@ function updateElementChild(oldVNode, newVNode, container) {
                 const newLen = newChildren.length;
                 const commonLen = Math.min(oldLen, newLen);
                 for (let i = 0; i < commonLen; i++) {
+                    // 遍历找到下一个锚点dom
+                    for (let j = i + 1; j < commonLen; j++) {
+                        diff(oldChildren[j], newChildren[j]);
+                        if (newChildren[j].if && newChildren[j].el) {
+                            // 若存在锚点dom则入栈
+                            vnodeStack.push(newChildren[j]);
+                            break;
+                        }
+                    }
+                    diff(oldChildren[i], newChildren[i]);
                     patch(oldChildren[i], newChildren[i], container);
                 }
                 // 若新子节点数大于旧子节点，说明有新的元素需要挂载
@@ -3715,6 +3730,35 @@ function updateElement(oldVNode, newVNode) {
     else {
         unmountElement(oldVNode);
     }
+}
+/**
+ * 向容器中插入真实DOM
+ * @param el 要插入的DOM
+ * @param container 容器DOM
+ * @param anchor 锚点DOM
+ */
+function insert(el, container, anchor = null) {
+    container.insertBefore(el, anchor);
+}
+/**
+ * 将可复用的DOM的引用赋给新VNode
+ * @param oldVNode 旧vnode
+ * @param newVNode 新vnode
+ */
+function diff(oldVNode, newVNode) {
+    if (newVNode.el) {
+        return;
+    }
+    if (oldVNode.type !== newVNode.type) {
+        return;
+    }
+    if (typeof oldVNode.children !== typeof newVNode.children) {
+        return;
+    }
+    if (oldVNode.if !== newVNode.if) {
+        return;
+    }
+    newVNode.el = oldVNode.el;
 }
 
 /**
