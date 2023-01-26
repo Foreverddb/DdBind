@@ -3,6 +3,9 @@ import {CommentVnodeSymbol, TextVnodeSymbol} from "renderer/vnode";
 import {error} from "utils/debug";
 import {patchProps} from "renderer/props-heleper";
 
+// 用于暂存当前vnode的后继vnode
+const vnodeStack: VNode[] = []
+
 /**
  * 完成vnode的挂载更新
  * @param oldVNode 原vnode
@@ -10,6 +13,9 @@ import {patchProps} from "renderer/props-heleper";
  * @param container 渲染容器
  */
 export function patch(oldVNode: VNode, newVNode: VNode, container: Container): void {
+    // 获取锚点以确定挂载dom的位置
+    const anchor = vnodeStack.length > 0 ? vnodeStack.pop() : null
+    // debugger
     if (!newVNode) {
         if (oldVNode) {
             unmountElement(oldVNode)
@@ -26,33 +32,33 @@ export function patch(oldVNode: VNode, newVNode: VNode, container: Container): v
 
     if (vnodeType === 'string') { // vnode为普通标签
         if (!oldVNode || !oldVNode.el) {
-            mountElement(newVNode, container) // 挂载vnode
+            mountElement(newVNode, container, anchor) // 挂载vnode
         } else {
             updateElement(oldVNode, newVNode) // 更新vnode
         }
     } else if (vnodeType === 'object') { // TODO vnode为组件
 
-    } else if (vnodeType === 'symbol'){ // 标准普通标签以外的标签
+    } else if (vnodeType === 'symbol') { // 标准普通标签以外的标签
         if (newVNode.type === TextVnodeSymbol) { // 文本节点
             if (__DEV__ && typeof newVNode.children !== 'string') {
                 error(`text node requires children being type of "string", received type ${typeof newVNode.children}`, newVNode)
             }
             if (!oldVNode) {
                 const el = newVNode.el = document.createTextNode(newVNode.children as string)
-                container.insertBefore(el, null)
+                insert(el, container)
             } else { // 若原节点存在则更新
                 const el = newVNode.el = oldVNode.el
                 if (newVNode.children !== oldVNode.children) {
                     el.nodeValue = newVNode.children as string
                 }
             }
-        } else if (newVNode.type === CommentVnodeSymbol){ // 注释节点
+        } else if (newVNode.type === CommentVnodeSymbol) { // 注释节点
             if (__DEV__ && typeof newVNode.children !== 'string') {
                 error(`comment node requires children being type of "string", received type ${typeof newVNode.children}`, newVNode)
             }
             if (!oldVNode) {
                 const el = newVNode.el = document.createComment(newVNode.children as string)
-                container.insertBefore(el, null)
+                insert(el, container)
             } else { // 若原节点存在则更新
                 const el = newVNode.el = oldVNode.el
                 if (newVNode.children !== oldVNode.children) {
@@ -67,8 +73,9 @@ export function patch(oldVNode: VNode, newVNode: VNode, container: Container): v
  * 将vnode挂载到真实dom
  * @param vnode 需要挂载的vnode
  * @param container 挂载容器
+ * @param anchor 锚点，要挂载位置的直接后继vnode
  */
-export function mountElement(vnode: VNode, container: Container) {
+export function mountElement(vnode: VNode, container: Container, anchor?: VNode) {
     if (vnode.if) {
         const el: Container = vnode.el = document.createElement(vnode.type as string)
         // 将每个child挂载到真实dom
@@ -87,8 +94,7 @@ export function mountElement(vnode: VNode, container: Container) {
                 patchProps(el, key, null, vnode.props[key])
             }
         }
-
-        container.insertBefore(el, null)
+        insert(el, container, anchor ? anchor.el : null)
     } else if (vnode.el) {
         unmountElement(vnode)
     }
@@ -110,7 +116,7 @@ export function unmountElement(vnode: VNode) {
  * 更新某节点的子节点
  * @param oldVNode 旧vnode
  * @param newVNode 新vnode
- * @param container
+ * @param container 容器dom
  */
 export function updateElementChild(oldVNode: VNode, newVNode: VNode, container: Container) {
     if (newVNode.if) {
@@ -135,6 +141,15 @@ export function updateElementChild(oldVNode: VNode, newVNode: VNode, container: 
                 const commonLen: number = Math.min(oldLen, newLen)
 
                 for (let i = 0; i < commonLen; i++) {
+                    // debugger
+                    for (let j = i + 1; j < commonLen; j++) {
+                        diff(oldChildren[j], newChildren[j])
+                        if (newChildren[j].if && newChildren[j].el) {
+                            vnodeStack.push(newChildren[j])
+                            break
+                        }
+                    }
+                    diff(oldChildren[i], newChildren[i])
                     patch(oldChildren[i], newChildren[i], container)
                 }
 
@@ -142,6 +157,7 @@ export function updateElementChild(oldVNode: VNode, newVNode: VNode, container: 
                 // 否则说明需要卸载旧节点
                 if (newLen > oldLen) {
                     for (let i = commonLen; i < newLen; i++) {
+                        diff(oldChildren[i], newChildren[i])
                         patch(null, newChildren[i], container)
                     }
                 } else if (oldLen > newLen) {
@@ -149,6 +165,14 @@ export function updateElementChild(oldVNode: VNode, newVNode: VNode, container: 
                         unmountElement(oldChildren[i])
                     }
                 }
+                // oldChildren.forEach(child => {
+                //     if (child.el) {
+                //         unmountElement(child)
+                //     }
+                // })
+                // newChildren.forEach(child => {
+                //     patch(null, child, container)
+                // })
             } else {
                 container.textContent = ''
                 newVNode.children.forEach(child => {
@@ -199,4 +223,35 @@ export function updateElement(oldVNode: VNode, newVNode: VNode) {
     } else {
         unmountElement(oldVNode)
     }
+}
+
+/**
+ * 向容器中插入真实DOM
+ * @param el 要插入的DOM
+ * @param container 容器DOM
+ * @param anchor 锚点DOM
+ */
+function insert(el: HTMLElement | Comment, container: HTMLElement, anchor: HTMLElement | Comment = null) {
+    container.insertBefore(el, anchor)
+}
+
+/**
+ * 将可复用的DOM的引用赋给新VNode
+ * @param oldVNode 旧vnode
+ * @param newVNode 新vnode
+ */
+function diff(oldVNode: VNode, newVNode: VNode) {
+    if (newVNode.el) {
+        return
+    }
+    if (oldVNode.type !== newVNode.type) {
+        return
+    }
+    if (typeof oldVNode.children !== typeof newVNode.children) {
+        return
+    }
+    if (oldVNode.if !== newVNode.if) {
+        return
+    }
+    newVNode.el = oldVNode.el
 }
