@@ -25,17 +25,15 @@
 
 查看[demo for browser](https://foreverddb.github.io/DdBind/docs/demo.html)
 
-[Codepen在线预览运行]()
+[Codepen在线编辑并预览](https://codepen.io/foreverddb/pen/yLqjdao)
 
 ```html
-
 <script src="https://foreverddb.github.io/DdBind/dist/ddbind.browser.prod.js"></script>
 ```
 
 或使用开发版本
 
 ```html
-
 <script src="https://foreverddb.github.io/DdBind/dist/ddbind.browser.dev.js"></script>
 ```
 
@@ -50,7 +48,6 @@ npm install --save ddbind
 ### HTML:
 
 ```html
-
 <div id="app">
     <div>
         <h1>{{ foo }}</h1>
